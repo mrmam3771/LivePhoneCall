@@ -35,14 +35,12 @@ class ChatStoreTests(unittest.TestCase):
     def test_audio_is_rejected_and_agent_deletion_reassigns_sessions(self):
         agent = self.client.post(
             "/api/chat/agents",
-            json={
-                "name": "Telephone Agent", "provider": "custom", "base_url": "http://127.0.0.1:11434/v1",
-                "request_path": "/v1/chat/completions", "api_key": "local-test-key", "model": "qwen",
-            },
+            json={"name": "Telephone Agent", "systemPrompt": "Be concise."},
         ).get_json()
-        self.assertEqual(agent["requestPath"], "/v1/chat/completions")
-        self.assertEqual(agent["apiKey"], "local-test-key")
-        session = self.client.post("/api/chat/sessions", json={"agent_id": agent["id"]}).get_json()
+        model = self.client.post("/api/chat/models", json={"name": "Local Qwen", "provider": "custom", "base_url": "http://127.0.0.1:11434/v1", "request_path": "/v1/chat/completions", "api_key": "local-test-key", "model": "qwen"}).get_json()
+        self.assertEqual(model["requestPath"], "/v1/chat/completions")
+        self.assertEqual(model["apiKey"], "local-test-key")
+        session = self.client.post("/api/chat/sessions", json={"agent_id": agent["id"], "model_id": model["id"]}).get_json()
         response = self.client.post(
             f"/api/chat/sessions/{session['id']}/messages",
             json={"role": "user", "type": "audio", "content": "Voice note"},

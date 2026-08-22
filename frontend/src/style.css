@@ -278,6 +278,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .message-meta span { color: var(--text-soft); font-weight: 700; }
 .message-bubble { max-width: min(76%, 680px); color: var(--text); font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .message.user .message-bubble { padding: 10px 13px; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border)); border-radius: 8px 8px 2px 8px; background: var(--accent-soft); color: var(--accent-text); }
+.thinking-message { width: min(76%, 680px); margin-bottom: 10px; border-left: 2px solid var(--accent); color: var(--text-soft); font-size: 12px; line-height: 1.55; }
+.thinking-message summary { cursor: pointer; padding: 4px 9px; color: var(--accent-strong); font-size: 11px; font-weight: 700; }
+.thinking-message > div { padding: 5px 9px 9px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .audio-message {
   width: min(100%, 520px);
   display: grid;

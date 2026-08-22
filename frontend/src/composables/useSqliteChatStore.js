@@ -56,15 +56,20 @@ export function useSqliteChatStore() {
   return {
     open,
     listSessions: () => request('/sessions'),
-    createSession: (agentId = DEFAULT_AGENT_ID) => request('/sessions', { method: 'POST', body: JSON.stringify({ agentId }) }),
+    createSession: (agentId = DEFAULT_AGENT_ID, modelId) => request('/sessions', { method: 'POST', body: JSON.stringify({ agentId, modelId }) }),
     listMessages: (sessionId) => request(`/sessions/${sessionId}/messages`),
     addMessage,
     deleteSession: (sessionId) => request(`/sessions/${sessionId}`, { method: 'DELETE' }),
     setSessionAgent: (sessionId, agentId) => request(`/sessions/${sessionId}`, { method: 'PATCH', body: JSON.stringify({ agentId }) }),
+    setSessionModel: (sessionId, modelId) => request(`/sessions/${sessionId}`, { method: 'PATCH', body: JSON.stringify({ modelId }) }),
     listAgents: () => request('/agents'),
     createAgent: (agent) => request('/agents', { method: 'POST', body: JSON.stringify(agent) }),
     updateAgent: (agent) => request(`/agents/${agent.id}`, { method: 'PUT', body: JSON.stringify(agent) }),
     deleteAgent: (agentId) => request(`/agents/${agentId}`, { method: 'DELETE' }),
+    listModels: () => request('/models'),
+    createModel: (model) => request('/models', { method: 'POST', body: JSON.stringify(model) }),
+    updateModel: (model) => request(`/models/${model.id}`, { method: 'PUT', body: JSON.stringify(model) }),
+    deleteModel: (modelId) => request(`/models/${modelId}`, { method: 'DELETE' }),
   }
 }
 

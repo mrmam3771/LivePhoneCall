@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { Bot, Database, MessageSquare, Plus, Search, Settings2, Trash2, Volume2 } from '@lucide/vue'
 
 const props = defineProps({ sessions: { type: Array, required: true }, activeSessionId: { type: String, required: true }, activeAgent: { type: Object, default: null } })
-defineEmits(['create', 'select', 'delete', 'manage-agents'])
+defineEmits(['create', 'select', 'delete', 'manage-agents', 'manage-models'])
 const query = ref('')
 const filteredSessions = computed(() => {
   const value = query.value.trim().toLocaleLowerCase()
@@ -23,7 +23,7 @@ function relativeTime(timestamp) {
   <aside class="sidebar">
     <div class="brand-row"><div class="brand-mark"><Volume2 :size="18" /></div><div><strong>Qwen Voice</strong><span>Local workspace</span></div></div>
     <button class="agent-picker" type="button" @click="$emit('manage-agents')"><span class="agent-avatar"><Bot :size="16" /></span><span><small>Current Agent</small><strong>{{ activeAgent?.name || 'Qwen General' }}</strong></span><Settings2 :size="15" /></button>
-    <button class="model-settings-button" type="button" @click="$emit('manage-agents')"><Settings2 :size="16" /><span>Model settings</span></button>
+    <button class="model-settings-button" type="button" @click="$emit('manage-models')"><Settings2 :size="16" /><span>Model settings</span></button>
     <button class="new-session-button" type="button" @click="$emit('create')"><Plus :size="17" /><span>New conversation</span></button>
     <label class="session-search"><Search :size="15" /><input v-model="query" type="search" placeholder="Search conversations" /></label>
     <div class="session-section-heading"><span>Conversations</span><span>{{ filteredSessions.length }}</span></div>

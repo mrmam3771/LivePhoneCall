@@ -29,7 +29,8 @@ watch(() => props.messages.map((message) => message.id), (messageIds) => {
     <div v-else class="message-column">
       <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
         <div class="message-meta"><span>{{ message.role === 'user' ? 'You' : 'Qwen Voice' }}</span><time>{{ messageTime(message.createdAt) }}</time></div>
-        <div v-if="message.type === 'audio'" class="audio-message"><AudioLines :size="18" /><div><strong>{{ message.content }}</strong><span>{{ formatDuration(message.duration) }}</span></div><audio controls preload="metadata" :src="audioSource(message)" /></div>
+        <details v-if="message.type === 'thinking'" class="thinking-message"><summary>Thinking</summary><div>{{ message.content }}</div></details>
+        <div v-else-if="message.type === 'audio'" class="audio-message"><AudioLines :size="18" /><div><strong>{{ message.content }}</strong><span>{{ formatDuration(message.duration) }}</span></div><audio controls preload="metadata" :src="audioSource(message)" /></div>
         <div v-else class="message-bubble">{{ message.content }}</div>
       </article>
     </div>

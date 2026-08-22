@@ -74,8 +74,28 @@ the settings page takes precedence.
 wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_voice_agent.sh'
 ```
 
-Open `http://127.0.0.1:8000`. The page supports microphone transcription,
-turn-based Agent replies, automatic TTS playback, and direct TTS tests.
+## Vue frontend
+
+The new chat interface lives in `frontend/` as a Vue 3 and Vite application.
+It includes responsive conversation navigation, text messages, browser audio
+recording, IndexedDB persistence, and light/dark themes. The light palette uses
+cream and soft orange; the dark palette uses charcoal and soft purple.
+
+For frontend-only development, leave the AI services stopped and run:
+
+```powershell
+cd frontend
+yarn
+yarn dev
+```
+
+Open `http://127.0.0.1:8000`. Text and recorded audio are stored only in that
+browser profile. Clearing site data removes them. This preview intentionally
+does not call ASR, LLM, or TTS APIs yet.
+
+Build and test the frontend with `yarn build` and `yarn test`. The next
+integration step is to connect the Vue composer and phone workflow to the
+existing `/api/*` endpoints, then serve the production bundle from Flask.
 
 For mobile microphone testing, use a trusted HTTPS URL. A Cloudflare Quick
 Tunnel is the shortest test path (no account required):
@@ -99,7 +119,7 @@ wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/stop_voice_ag
 ## API
 
 - `GET /api/voice/health`: TTS readiness and LangChain configuration
-- `POST /api/agent/chat`: `{ "text": "...", "conversation_id": "..." }`
+- `POST /api/agent/chat`: `{ "text": "...", "conversation_id": "...", "history": [...] }`
 - `POST /api/tts`: `{ "text": "...", "language": "Auto", "speaker": "Vivian" }`
 - `GET /api/settings`: provider catalog with credential status, never key values
 - `PUT /api/settings/provider`: save a provider and optionally activate it

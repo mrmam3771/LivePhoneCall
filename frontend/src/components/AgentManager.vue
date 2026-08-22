@@ -31,13 +31,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
     <div class="modal-backdrop" @mousedown.self="$emit('close')">
       <section class="agent-modal" role="dialog" aria-modal="true" aria-labelledby="agent-manager-title">
         <header class="agent-modal-header">
-          <div><h2 id="agent-manager-title">Custom Agents</h2><p>Choose an Agent or define a new one.</p></div>
+          <div><h2 id="agent-manager-title">Model Settings</h2><p>Configure model connections, then assign an Agent to each conversation.</p></div>
           <button class="icon-button" type="button" title="Close Agent manager" aria-label="Close Agent manager" :disabled="busy" @click="$emit('close')"><X :size="18" /></button>
         </header>
 
         <div class="agent-modal-layout">
           <aside class="agent-catalog">
-            <button class="new-agent" type="button" :disabled="busy" @click="createAgent"><CopyPlus :size="16" /> New Agent</button>
+            <button class="new-agent" type="button" :disabled="busy" @click="createAgent"><CopyPlus :size="16" /> New model Agent</button>
             <button v-for="agent in agents" :key="agent.id" class="agent-list-item" :class="{ active: draft.id === agent.id }" type="button" :disabled="busy" @click="editAgent(agent)">
               <span class="agent-avatar"><Bot :size="16" /></span>
               <span><strong>{{ agent.name }}</strong><small>{{ agent.provider }} · {{ agent.model }}</small></span>
@@ -46,7 +46,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
           </aside>
 
           <form class="agent-form" @submit.prevent="submit">
-            <div class="form-heading"><div><h3>{{ editingExisting ? draft.name : 'Create Agent' }}</h3><p>Configuration is stored in this device's local SQLite database.</p></div><span v-if="draft.builtIn" class="built-in-label">Built-in</span></div>
+            <div class="form-heading"><div><h3>{{ editingExisting ? draft.name : 'Create model Agent' }}</h3><p>Provider, model, API Key and endpoint are stored in local SQLite.</p></div><span v-if="draft.builtIn" class="built-in-label">Built-in</span></div>
 
             <div class="field-grid two-columns">
               <label><span>Name</span><input v-model="draft.name" maxlength="48" required :disabled="draft.builtIn" placeholder="e.g. Sales assistant" /></label>

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { Menu, Moon, Sun } from '@lucide/vue'
+import { Menu, Moon, Settings2, Sun } from '@lucide/vue'
 import AgentManager from './components/AgentManager.vue'
 import CallPanel from './components/CallPanel.vue'
 import ChatComposer from './components/ChatComposer.vue'
@@ -178,6 +178,7 @@ onMounted(async () => {
         <div class="header-actions">
           <span class="preview-status"><i /> Local workspace</span>
           <button class="agent-chip" type="button" title="Choose Agent for this conversation" @click="agentManagerOpen = true">{{ activeAgent?.name || 'Qwen General' }}</button>
+          <button class="icon-button" type="button" title="Model settings" aria-label="Model settings" @click="agentManagerOpen = true"><Settings2 :size="18" /></button>
           <button class="icon-button theme-toggle" type="button" :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" @click="applyTheme(theme === 'dark' ? 'light' : 'dark')">
             <Sun v-if="theme === 'dark'" :size="18" />
             <Moon v-else :size="18" />

@@ -118,6 +118,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .agent-picker strong { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 11px; }
 .agent-picker > svg { color: var(--text-faint); }
 .agent-avatar { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 6px; color: var(--accent-strong); background: var(--accent-soft); }
+.model-settings-button { height: 34px; margin: 8px 12px 0; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--text-soft); cursor: pointer; font-size: 11px; text-align: left; }
+.model-settings-button:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 
 .new-session-button {
   height: 40px;

@@ -14,3 +14,4 @@ models/
 qwen3-asr-service.log
 qwen3-tts-service.log
 .run/
+.voice-agent/

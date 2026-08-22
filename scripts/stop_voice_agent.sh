@@ -10,9 +10,15 @@ stop_service() {
   local pid
   pid="$(cat "$pid_file")"
   if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
-    kill "$pid"
+    local pgid
+    pgid="$(ps -o pgid= -p "$pid" | tr -d ' ')"
+    if [[ "$pgid" == "$pid" ]]; then
+      kill -TERM -- "-$pgid"
+    else
+      kill "$pid"
+    fi
     for _ in $(seq 1 30); do
-      if ! kill -0 "$pid" 2>/dev/null; then
+      if ! kill -0 "$pid" 2>/dev/null && { [[ "$pgid" != "$pid" ]] || ! kill -0 -- "-$pgid" 2>/dev/null; }; then
         echo "Stopped $name (PID $pid)."
         rm -f "$pid_file"
         return

@@ -22,7 +22,7 @@ start_if_stopped() {
     echo "Cannot start $name: port $port is already in use by an unmanaged process." >&2
     exit 1
   fi
-  nohup "$@" >"$log_file" 2>&1 &
+  nohup setsid "$@" >"$log_file" 2>&1 &
   echo $! >"$pid_file"
   echo "Started $name (PID $!)."
 }

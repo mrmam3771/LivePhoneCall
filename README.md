@@ -29,7 +29,25 @@ Download Qwen3-TTS from ModelScope:
 wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && uv run --project qwen3-tts-service qwen3-tts-service/download_model.py'
 ```
 
-## LangChain model
+## Model providers
+
+Open `http://127.0.0.1:8000/settings` to configure and test providers without
+restarting the service. The built-in catalog includes OpenAI, Anthropic, Google
+Gemini, Alibaba DashScope, DeepSeek, Moonshot AI, OpenRouter, SiliconFlow, and
+Ollama. Custom OpenAI-compatible endpoints such as vLLM and LM Studio can be
+added from the same page.
+
+The settings page and its mutation/test APIs accept localhost requests only.
+They are intentionally unavailable through LAN addresses and the mobile HTTPS
+tunnel so a remote client cannot redirect requests carrying a stored API key.
+
+The design follows pi's separation of model configuration and authentication:
+provider/model settings are saved in `.voice-agent/models.json`, while API keys
+are saved separately in `.voice-agent/auth.json` and are never returned by the
+settings API. Both files are ignored by Git. A blank key field preserves the
+stored key.
+
+### Environment fallback
 
 Without configuration, the page uses an explicit echo response so ASR and TTS
 can be tested without an API key. The included provider is `langchain-openai`;
@@ -45,6 +63,10 @@ model such as `VOICE_AGENT_MODEL=openai:qwen-plus`. Optional settings are
 `VOICE_AGENT_SYSTEM_PROMPT`, `VOICE_AGENT_TEMPERATURE`, `VOICE_AGENT_TIMEOUT`,
 and `VOICE_AGENT_MAX_TOKENS`. Install the matching LangChain integration package
 before selecting a different provider.
+
+Environment variables remain a backward-compatible fallback until the settings
+page saves its first provider configuration. After that, the active provider in
+the settings page takes precedence.
 
 ## Start
 
@@ -79,6 +101,9 @@ wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/stop_voice_ag
 - `GET /api/voice/health`: TTS readiness and LangChain configuration
 - `POST /api/agent/chat`: `{ "text": "...", "conversation_id": "..." }`
 - `POST /api/tts`: `{ "text": "...", "language": "Auto", "speaker": "Vivian" }`
+- `GET /api/settings`: provider catalog with credential status, never key values
+- `PUT /api/settings/provider`: save a provider and optionally activate it
+- `POST /api/settings/test`: test the saved provider connection
 
 `/api/tts` returns `audio/wav`. This is a turn-based browser call simulation,
 not a PSTN/SIP carrier integration. The API boundary can later be reused from

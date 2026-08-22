@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.venv-wsl
+qwen3-tts-service/.venv
+models/
+qwen3-asr-service.log
+qwen3-tts-service.log
+.run/

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Mic, PhoneOff, Radio, RefreshCw, X } from '@lucide/vue'
-import { formatDuration } from '../composables/useChatDatabase'
+import { formatDuration } from '../composables/useSqliteChatStore'
 
 const props = defineProps({ sessionId: { type: String, required: true } })
 const emit = defineEmits(['close', 'recording-complete'])

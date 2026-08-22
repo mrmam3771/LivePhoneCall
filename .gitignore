@@ -15,3 +15,6 @@ qwen3-asr-service.log
 qwen3-tts-service.log
 .run/
 .voice-agent/
+chat-data.sqlite3
+chat-data.sqlite3-shm
+chat-data.sqlite3-wal

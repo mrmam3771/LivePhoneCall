@@ -78,7 +78,7 @@ wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_voice_a
 
 The new chat interface lives in `frontend/` as a Vue 3 and Vite application.
 It includes responsive conversation navigation, text messages, browser audio
-recording with microphone selection, IndexedDB persistence, custom Agents, and
+recording with microphone selection, root-level SQLite persistence, custom Agents, and
 light/dark themes. Each Agent can define its own instructions, provider, model,
 language, and reply voice. Each conversation remains bound to the Agent it was
 created with, and the active conversation's Agent can be changed from the
@@ -93,9 +93,16 @@ yarn
 yarn dev
 ```
 
-Open `http://127.0.0.1:8000`. Text and recorded audio are stored only in that
-browser profile. Clearing site data removes them. This preview intentionally
-does not call ASR, LLM, or TTS APIs yet.
+Open `http://127.0.0.1:8000`. `yarn dev` starts Vite and the local-only SQLite
+service together. Text, recorded audio, sessions, and Agents are stored in
+`chat-data.sqlite3` at the project root, which makes backup and one-device-at-a-time
+file synchronization straightforward. Do not synchronize a live SQLite database
+between two running machines; stop the local service first. The database (including
+Agent API keys) is ignored by Git and should be treated as sensitive local data.
+
+Each custom Agent can set its provider, model, Base URL, API Key, and request path.
+These fields are stored per Agent so separate conversations can use separate models.
+This preview intentionally does not call ASR, LLM, or TTS APIs yet.
 
 Build and test the frontend with `yarn build` and `yarn test`. The next
 integration step is to connect the Vue composer and phone workflow to the

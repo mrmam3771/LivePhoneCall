@@ -34,6 +34,6 @@ function relativeTime(timestamp) {
         <button class="session-delete" type="button" :title="`Delete ${session.title}`" :aria-label="`Delete ${session.title}`" @click="$emit('delete', session.id)"><Trash2 :size="14" /></button>
       </div>
     </nav>
-    <div class="sidebar-footer"><Database :size="15" /><span>Local conversations</span><span class="storage-note">IndexedDB</span></div>
+    <div class="sidebar-footer"><Database :size="15" /><span>Local conversations</span><span class="storage-note">SQLite</span></div>
   </aside>
 </template>

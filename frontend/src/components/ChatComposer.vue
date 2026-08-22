@@ -18,6 +18,6 @@ function handleKeydown(event) { if (event.key === 'Enter' && !event.shiftKey) { 
       <textarea ref="input" v-model="text" rows="1" maxlength="4000" placeholder="Message Qwen Voice..." aria-label="Message" @input="resize" @keydown="handleKeydown" />
       <button class="send-button" type="submit" title="Send message" aria-label="Send message" :disabled="!text.trim()"><ArrowUp :size="18" :stroke-width="2.4" /></button>
     </form>
-    <p>Frontend preview · Messages stay in this browser</p>
+    <p>Local workspace · Messages save to SQLite</p>
   </div>
 </template>

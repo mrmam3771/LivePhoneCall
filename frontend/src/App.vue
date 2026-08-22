@@ -6,9 +6,9 @@ import CallPanel from './components/CallPanel.vue'
 import ChatComposer from './components/ChatComposer.vue'
 import MessageList from './components/MessageList.vue'
 import SessionSidebar from './components/SessionSidebar.vue'
-import { DEFAULT_AGENT_ID, useChatDatabase } from './composables/useChatDatabase'
+import { DEFAULT_AGENT_ID, useSqliteChatStore } from './composables/useSqliteChatStore'
 
-const database = useChatDatabase()
+const database = useSqliteChatStore()
 const sessions = ref([])
 const messages = ref([])
 const agents = ref([])
@@ -34,7 +34,7 @@ function applyTheme(value) {
 }
 
 function reportError(error) {
-  errorMessage.value = `Local storage error: ${error?.message || error}`
+  errorMessage.value = `Chat storage error: ${error?.message || error}`
 }
 
 async function refreshSessions() {
@@ -144,9 +144,9 @@ async function saveRecording(recording) {
 onMounted(async () => {
   applyTheme(theme.value)
   try {
-    await database.open()
-    await refreshAgents()
-    await refreshSessions()
+    const bootstrap = await database.open()
+    agents.value = bootstrap.agents
+    sessions.value = bootstrap.sessions
     if (!sessions.value.length) await createSession()
     else await selectSession(sessions.value[0].id)
   } catch (error) { reportError(error) }
@@ -174,10 +174,10 @@ onMounted(async () => {
         </button>
         <div class="chat-heading">
           <h1>{{ activeSession?.title || 'New conversation / 新会话' }}</h1>
-          <span>{{ activeAgent?.name || 'Qwen General' }} · Saved locally</span>
+          <span>{{ activeAgent?.name || 'Qwen General' }} · Local SQLite</span>
         </div>
         <div class="header-actions">
-          <span class="preview-status"><i /> Frontend preview</span>
+          <span class="preview-status"><i /> Local workspace</span>
           <button class="agent-chip" type="button" title="Choose Agent for this conversation" @click="agentManagerOpen = true">{{ activeAgent?.name || 'Qwen General' }}</button>
           <button class="icon-button theme-toggle" type="button" :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" @click="applyTheme(theme === 'dark' ? 'light' : 'dark')">
             <Sun v-if="theme === 'dark'" :size="18" />

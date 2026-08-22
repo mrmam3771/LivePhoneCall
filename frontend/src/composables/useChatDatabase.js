@@ -8,6 +8,8 @@ const DEFAULT_AGENT = {
   systemPrompt: 'You are a concise and helpful bilingual voice assistant.',
   provider: 'deepseek',
   baseUrl: '',
+  requestPath: '/chat/completions',
+  apiKey: '',
   model: 'deepseek-chat',
   language: 'Auto',
   voice: 'Vivian',

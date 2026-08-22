@@ -24,7 +24,7 @@ watch(() => props.messages.map((message) => message.id), (messageIds) => {
     <div v-if="loading" class="loading-state">Loading local conversations...</div>
     <div v-else-if="error" class="error-state">{{ error }}</div>
     <div v-else-if="!messages.length" class="empty-chat">
-      <div class="empty-icon"><MessageCircle :size="28" /></div><h2>Start a conversation</h2><p>Type a message or open the phone controls to record a voice note.</p><div class="privacy-note"><ShieldCheck :size="15" /> Stored only in this browser</div>
+      <div class="empty-icon"><MessageCircle :size="28" /></div><h2>Start a conversation</h2><p>Type a message or open the phone controls to record a voice note.</p><div class="privacy-note"><ShieldCheck :size="15" /> Saved in local SQLite</div>
     </div>
     <div v-else class="message-column">
       <article v-for="message in messages" :key="message.id" class="message" :class="message.role">

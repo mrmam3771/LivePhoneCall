@@ -8,7 +8,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
 })
 const emit = defineEmits(['close', 'delete', 'save', 'select'])
-const emptyAgent = () => ({ id: '', name: '', description: '', systemPrompt: '', provider: 'deepseek', baseUrl: '', model: 'deepseek-chat', language: 'Auto', voice: 'Vivian', builtIn: false })
+const emptyAgent = () => ({ id: '', name: '', description: '', systemPrompt: '', provider: 'deepseek', baseUrl: '', requestPath: '/chat/completions', apiKey: '', model: 'deepseek-chat', language: 'Auto', voice: 'Vivian', builtIn: false })
 const draft = reactive(emptyAgent())
 const editingExisting = computed(() => Boolean(draft.id))
 const canSave = computed(() => draft.name.trim() && draft.systemPrompt.trim() && draft.model.trim() && (draft.provider !== 'custom' || draft.baseUrl.trim()))
@@ -46,7 +46,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
           </aside>
 
           <form class="agent-form" @submit.prevent="submit">
-            <div class="form-heading"><div><h3>{{ editingExisting ? draft.name : 'Create Agent' }}</h3><p>Configuration is stored only in this browser.</p></div><span v-if="draft.builtIn" class="built-in-label">Built-in</span></div>
+            <div class="form-heading"><div><h3>{{ editingExisting ? draft.name : 'Create Agent' }}</h3><p>Configuration is stored in this device's local SQLite database.</p></div><span v-if="draft.builtIn" class="built-in-label">Built-in</span></div>
 
             <div class="field-grid two-columns">
               <label><span>Name</span><input v-model="draft.name" maxlength="48" required :disabled="draft.builtIn" placeholder="e.g. Sales assistant" /></label>
@@ -56,7 +56,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
             <div class="field-grid two-columns">
               <label><span>Provider</span><select v-model="draft.provider" :disabled="draft.builtIn"><option value="deepseek">DeepSeek</option><option value="dashscope">Alibaba DashScope</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="google">Google Gemini</option><option value="ollama">Ollama</option><option value="custom">OpenAI-compatible</option></select></label>
               <label><span>Model</span><input v-model="draft.model" required :disabled="draft.builtIn" placeholder="Model identifier" /></label>
-              <label v-if="draft.provider === 'custom'" class="full-width"><span>Base URL</span><input v-model="draft.baseUrl" required type="url" :disabled="draft.builtIn" placeholder="https://api.example.com/v1" /></label>
+              <label class="full-width"><span>Base URL</span><input v-model="draft.baseUrl" :required="draft.provider === 'custom'" type="url" :disabled="draft.builtIn" placeholder="https://api.example.com/v1" /></label>
+              <label><span>API Key</span><input v-model="draft.apiKey" type="password" autocomplete="off" :disabled="draft.builtIn" placeholder="Stored locally" /></label>
+              <label><span>Request path</span><input v-model="draft.requestPath" :disabled="draft.builtIn" placeholder="/chat/completions" /></label>
               <label><span>Response language</span><select v-model="draft.language" :disabled="draft.builtIn"><option>Auto</option><option>Chinese</option><option>English</option></select></label>
               <label><span>Reply voice</span><select v-model="draft.voice" :disabled="draft.builtIn"><option>Vivian</option><option>Serena</option><option>Ryan</option><option>Aiden</option><option>Dylan</option><option>Eric</option><option>Sohee</option></select></label>
             </div>

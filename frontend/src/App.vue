@@ -1,25 +1,31 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { Menu, Moon, Sun } from '@lucide/vue'
+import AgentManager from './components/AgentManager.vue'
 import CallPanel from './components/CallPanel.vue'
 import ChatComposer from './components/ChatComposer.vue'
 import MessageList from './components/MessageList.vue'
 import SessionSidebar from './components/SessionSidebar.vue'
-import { useChatDatabase } from './composables/useChatDatabase'
+import { DEFAULT_AGENT_ID, useChatDatabase } from './composables/useChatDatabase'
 
 const database = useChatDatabase()
 const sessions = ref([])
 const messages = ref([])
+const agents = ref([])
 const activeSessionId = ref('')
+const activeAgentId = ref(DEFAULT_AGENT_ID)
 const loading = ref(true)
 const errorMessage = ref('')
 const sidebarOpen = ref(false)
 const callPanelOpen = ref(false)
+const agentManagerOpen = ref(false)
+const agentMutationPending = ref(false)
 const theme = ref(localStorage.getItem('qwen-chat-theme') || 'dark')
 
 const activeSession = computed(() =>
   sessions.value.find((session) => session.id === activeSessionId.value),
 )
+const activeAgent = computed(() => agents.value.find((agent) => agent.id === activeAgentId.value) || agents.value[0])
 
 function applyTheme(value) {
   theme.value = value
@@ -34,23 +40,70 @@ function reportError(error) {
 async function refreshSessions() {
   sessions.value = await database.listSessions()
 }
+async function refreshAgents() { agents.value = await database.listAgents() }
 
 async function selectSession(id) {
   activeSessionId.value = id
   sidebarOpen.value = false
   try {
     const selectedMessages = await database.listMessages(id)
-    if (activeSessionId.value === id) messages.value = selectedMessages
+    if (activeSessionId.value === id) {
+      messages.value = selectedMessages
+      const session = sessions.value.find((item) => item.id === id)
+      activeAgentId.value = session?.agentId || DEFAULT_AGENT_ID
+    }
     await nextTick()
   } catch (error) { reportError(error) }
 }
 
-async function createSession() {
+async function createSession(agentId = activeAgentId.value) {
   try {
-    const session = await database.createSession()
+    const session = await database.createSession(agentId)
     await refreshSessions()
     await selectSession(session.id)
   } catch (error) { reportError(error) }
+}
+
+async function saveAgent(agent) {
+  if (agentMutationPending.value) return
+  agentMutationPending.value = true
+  try {
+    const isNewAgent = !agent.id
+    const saved = agent.id ? await database.updateAgent(agent) : await database.createAgent(agent)
+    await refreshAgents()
+    agentManagerOpen.value = false
+    if (isNewAgent) {
+      activeAgentId.value = saved.id
+      await createSession(saved.id)
+    }
+  } catch (error) { reportError(error) }
+  finally { agentMutationPending.value = false }
+}
+
+async function deleteAgent(id) {
+  if (agentMutationPending.value) return
+  agentMutationPending.value = true
+  try {
+    await database.deleteAgent(id)
+    await refreshAgents()
+    await refreshSessions()
+    if (activeAgentId.value === id) activeAgentId.value = DEFAULT_AGENT_ID
+    agentManagerOpen.value = false
+  } catch (error) { reportError(error) }
+  finally { agentMutationPending.value = false }
+}
+
+async function selectAgent(id) {
+  if (agentMutationPending.value) return
+  if (!activeSessionId.value) return
+  agentMutationPending.value = true
+  try {
+    await database.setSessionAgent(activeSessionId.value, id)
+    await refreshSessions()
+    activeAgentId.value = id
+    agentManagerOpen.value = false
+  } catch (error) { reportError(error) }
+  finally { agentMutationPending.value = false }
 }
 
 async function deleteSession(id) {
@@ -62,9 +115,8 @@ async function deleteSession(id) {
   } catch (error) { reportError(error) }
 }
 
-async function addMessage(payload) {
-  if (!activeSessionId.value) return
-  const targetSessionId = activeSessionId.value
+async function addMessage(payload, targetSessionId = activeSessionId.value) {
+  if (!targetSessionId) return
   try {
     await database.addMessage(targetSessionId, payload)
     const targetMessages = await database.listMessages(targetSessionId)
@@ -85,7 +137,7 @@ async function saveRecording(recording) {
     audio: recording.blob,
     mimeType: recording.mimeType,
     duration: recording.duration,
-  })
+  }, recording.sessionId)
   callPanelOpen.value = false
 }
 
@@ -93,6 +145,7 @@ onMounted(async () => {
   applyTheme(theme.value)
   try {
     await database.open()
+    await refreshAgents()
     await refreshSessions()
     if (!sessions.value.length) await createSession()
     else await selectSession(sessions.value[0].id)
@@ -106,9 +159,11 @@ onMounted(async () => {
     <SessionSidebar
       :sessions="sessions"
       :active-session-id="activeSessionId"
+      :active-agent="activeAgent"
       @create="createSession"
       @select="selectSession"
       @delete="deleteSession"
+      @manage-agents="agentManagerOpen = true"
     />
     <button class="sidebar-backdrop" type="button" aria-label="Close conversations" @click="sidebarOpen = false" />
 
@@ -119,10 +174,11 @@ onMounted(async () => {
         </button>
         <div class="chat-heading">
           <h1>{{ activeSession?.title || 'New conversation / 新会话' }}</h1>
-          <span>Saved locally / 本地保存</span>
+          <span>{{ activeAgent?.name || 'Qwen General' }} · Saved locally</span>
         </div>
         <div class="header-actions">
           <span class="preview-status"><i /> Frontend preview</span>
+          <button class="agent-chip" type="button" title="Choose Agent for this conversation" @click="agentManagerOpen = true">{{ activeAgent?.name || 'Qwen General' }}</button>
           <button class="icon-button theme-toggle" type="button" :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" @click="applyTheme(theme === 'dark' ? 'light' : 'dark')">
             <Sun v-if="theme === 'dark'" :size="18" />
             <Moon v-else :size="18" />
@@ -132,9 +188,10 @@ onMounted(async () => {
 
       <MessageList :messages="messages" :loading="loading" :error="errorMessage" />
       <div class="interaction-dock">
-        <CallPanel v-if="callPanelOpen" @close="callPanelOpen = false" @recording-complete="saveRecording" />
+        <CallPanel v-if="callPanelOpen" :session-id="activeSessionId" @close="callPanelOpen = false" @recording-complete="saveRecording" />
         <ChatComposer :call-panel-open="callPanelOpen" @send="sendMessage" @toggle-call="callPanelOpen = !callPanelOpen" />
       </div>
     </main>
+    <AgentManager v-if="agentManagerOpen" :agents="agents" :selected-agent-id="activeAgentId" :busy="agentMutationPending" @close="agentManagerOpen = false" @save="saveAgent" @delete="deleteAgent" @select="selectAgent" />
   </div>
 </template>

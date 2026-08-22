@@ -1,5 +1,20 @@
 const DATABASE_NAME = 'qwen-voice-agent'
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
+export const DEFAULT_AGENT_ID = 'qwen-general'
+const DEFAULT_AGENT = {
+  id: DEFAULT_AGENT_ID,
+  name: 'Qwen General',
+  description: 'Balanced bilingual voice assistant',
+  systemPrompt: 'You are a concise and helpful bilingual voice assistant.',
+  provider: 'deepseek',
+  baseUrl: '',
+  model: 'deepseek-chat',
+  language: 'Auto',
+  voice: 'Vivian',
+  builtIn: true,
+  createdAt: 0,
+  updatedAt: 0,
+}
 
 function makeId() {
   return crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
@@ -36,6 +51,9 @@ export function useChatDatabase() {
         const messages = db.createObjectStore('messages', { keyPath: 'id' })
         messages.createIndex('sessionId', 'sessionId')
       }
+      if (!db.objectStoreNames.contains('agents')) {
+        db.createObjectStore('agents', { keyPath: 'id' }).add(DEFAULT_AGENT)
+      }
     }
     database = await requestResult(request)
     return database
@@ -46,9 +64,9 @@ export function useChatDatabase() {
     return items.sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  async function createSession() {
+  async function createSession(agentId = DEFAULT_AGENT_ID) {
     const now = Date.now()
-    const session = { id: makeId(), title: 'New conversation / 新会话', preview: 'No messages yet / 暂无消息', createdAt: now, updatedAt: now }
+    const session = { id: makeId(), agentId, title: 'New conversation / 新会话', preview: 'No messages yet / 暂无消息', createdAt: now, updatedAt: now }
     const transaction = database.transaction('sessions', 'readwrite')
     transaction.objectStore('sessions').add(session)
     await transactionDone(transaction)
@@ -92,12 +110,60 @@ export function useChatDatabase() {
     await transactionDone(transaction)
   }
 
+  async function setSessionAgent(sessionId, agentId) {
+    const transaction = database.transaction('sessions', 'readwrite')
+    const store = transaction.objectStore('sessions')
+    const session = await requestResult(store.get(sessionId))
+    if (!session) throw new Error('Conversation not found')
+    store.put({ ...session, agentId })
+    await transactionDone(transaction)
+  }
+
+  async function listAgents() {
+    const agents = await requestResult(database.transaction('agents').objectStore('agents').getAll())
+    return agents.sort((a, b) => Number(b.builtIn) - Number(a.builtIn) || b.updatedAt - a.updatedAt)
+  }
+
+  async function createAgent(payload) {
+    const now = Date.now()
+    const agent = { ...payload, id: makeId(), builtIn: false, createdAt: now, updatedAt: now }
+    const transaction = database.transaction('agents', 'readwrite')
+    transaction.objectStore('agents').add(agent)
+    await transactionDone(transaction)
+    return agent
+  }
+
+  async function updateAgent(payload) {
+    const transaction = database.transaction('agents', 'readwrite')
+    const store = transaction.objectStore('agents')
+    const current = await requestResult(store.get(payload.id))
+    if (!current) throw new Error('Agent not found')
+    const agent = { ...current, ...payload, id: current.id, builtIn: current.builtIn, updatedAt: Date.now() }
+    store.put(agent)
+    await transactionDone(transaction)
+    return agent
+  }
+
+  async function deleteAgent(agentId) {
+    if (agentId === DEFAULT_AGENT_ID) throw new Error('The built-in Agent cannot be deleted')
+    const transaction = database.transaction(['agents', 'sessions'], 'readwrite')
+    transaction.objectStore('agents').delete(agentId)
+    const sessionStore = transaction.objectStore('sessions')
+    sessionStore.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result
+      if (!cursor) return
+      if (cursor.value.agentId === agentId) cursor.update({ ...cursor.value, agentId: DEFAULT_AGENT_ID })
+      cursor.continue()
+    }
+    await transactionDone(transaction)
+  }
+
   function close() {
     database?.close()
     database = undefined
   }
 
-  return { open, close, listSessions, createSession, listMessages, addMessage, deleteSession }
+  return { open, close, listSessions, createSession, listMessages, addMessage, deleteSession, setSessionAgent, listAgents, createAgent, updateAgent, deleteAgent }
 }
 
 export function formatDuration(seconds = 0) {

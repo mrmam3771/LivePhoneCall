@@ -78,8 +78,12 @@ wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_voice_a
 
 The new chat interface lives in `frontend/` as a Vue 3 and Vite application.
 It includes responsive conversation navigation, text messages, browser audio
-recording, IndexedDB persistence, and light/dark themes. The light palette uses
-cream and soft orange; the dark palette uses charcoal and soft purple.
+recording with microphone selection, IndexedDB persistence, custom Agents, and
+light/dark themes. Each Agent can define its own instructions, provider, model,
+language, and reply voice. Each conversation remains bound to the Agent it was
+created with, and the active conversation's Agent can be changed from the
+chat header at any time. The light palette uses cream and soft orange; the
+dark palette uses charcoal and soft purple.
 
 For frontend-only development, leave the AI services stopped and run:
 

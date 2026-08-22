@@ -60,4 +60,74 @@ describe('useChatDatabase', () => {
     expect(await database.listSessions()).toEqual([])
     expect(await database.listMessages(session.id)).toEqual([])
   })
+
+  test('creates custom agents and binds new sessions to them', async () => {
+    database = useChatDatabase()
+    await database.open()
+
+    const agents = await database.listAgents()
+    expect(agents).toEqual([
+      expect.objectContaining({ id: 'qwen-general', builtIn: true }),
+    ])
+
+    const agent = await database.createAgent({
+      name: 'Sales assistant',
+      description: 'Handles product calls',
+      systemPrompt: 'Answer as a concise sales assistant.',
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      language: 'Chinese',
+      voice: 'Vivian',
+    })
+    const session = await database.createSession(agent.id)
+
+    expect(session.agentId).toBe(agent.id)
+    expect(await database.listAgents()).toContainEqual(
+      expect.objectContaining({ id: agent.id, name: 'Sales assistant', builtIn: false }),
+    )
+  })
+
+  test('updates agents and falls sessions back when a custom agent is deleted', async () => {
+    database = useChatDatabase()
+    await database.open()
+    const agent = await database.createAgent({
+      name: 'Support',
+      description: '',
+      systemPrompt: 'Help the customer.',
+      provider: 'openai',
+      model: 'gpt-5-mini',
+      language: 'Auto',
+      voice: 'Ryan',
+    })
+    await database.updateAgent({ ...agent, name: 'Support Pro' })
+    const session = await database.createSession(agent.id)
+
+    expect(await database.listAgents()).toContainEqual(
+      expect.objectContaining({ id: agent.id, name: 'Support Pro' }),
+    )
+
+    await database.deleteAgent(agent.id)
+    expect((await database.listSessions()).find((item) => item.id === session.id).agentId).toBe('qwen-general')
+    await expect(database.deleteAgent('qwen-general')).rejects.toThrow('built-in')
+  })
+
+  test('assigns a different Agent to an existing conversation', async () => {
+    database = useChatDatabase()
+    await database.open()
+    const firstSession = await database.createSession('qwen-general')
+    const agent = await database.createAgent({
+      name: 'English support',
+      description: '',
+      systemPrompt: 'Reply in English.',
+      provider: 'openai',
+      baseUrl: '',
+      model: 'gpt-5-mini',
+      language: 'English',
+      voice: 'Ryan',
+    })
+
+    await database.setSessionAgent(firstSession.id, agent.id)
+
+    expect((await database.listSessions()).find((session) => session.id === firstSession.id).agentId).toBe(agent.id)
+  })
 })

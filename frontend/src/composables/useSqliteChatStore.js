@@ -13,29 +13,6 @@ async function request(path, options = {}) {
   return body
 }
 
-function blobToBase64(blob) {
-  if (!blob) return Promise.resolve(undefined)
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).split(',')[1])
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(blob)
-  })
-}
-
-function base64ToBlob(value, mimeType) {
-  if (!value) return undefined
-  const bytes = atob(value)
-  const data = new Uint8Array(bytes.length)
-  for (let index = 0; index < bytes.length; index += 1) data[index] = bytes.charCodeAt(index)
-  return new Blob([data], { type: mimeType || 'audio/webm' })
-}
-
-function mapMessage(message) {
-  const { audioBase64, ...rest } = message
-  return audioBase64 ? { ...rest, audio: base64ToBlob(audioBase64, message.mimeType) } : rest
-}
-
 export function useSqliteChatStore() {
   async function migrateIndexedDbIfNeeded(bootstrap) {
     if (bootstrap.sessions.length || localStorage.getItem(MIGRATION_KEY)) return
@@ -51,10 +28,10 @@ export function useSqliteChatStore() {
       for (const session of sessions) {
         const created = await request('/sessions', { method: 'POST', body: JSON.stringify({ agentId: agentIds.get(session.agentId) || DEFAULT_AGENT_ID }) })
         const messages = await legacy.listMessages(session.id)
-        for (const message of messages) {
+        for (const message of messages.filter((item) => item.type !== 'audio')) {
           await request(`/sessions/${created.id}/messages`, {
             method: 'POST',
-            body: JSON.stringify({ ...message, audioBase64: await blobToBase64(message.audio) }),
+            body: JSON.stringify(message),
           })
         }
       }
@@ -72,15 +49,15 @@ export function useSqliteChatStore() {
   }
 
   async function addMessage(sessionId, payload) {
-    const audioBase64 = await blobToBase64(payload.audio)
-    return mapMessage(await request(`/sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ ...payload, audioBase64 }) }))
+    if (payload.type === 'audio') throw new Error('Audio recordings are not stored in live call mode')
+    return request(`/sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify(payload) })
   }
 
   return {
     open,
     listSessions: () => request('/sessions'),
     createSession: (agentId = DEFAULT_AGENT_ID) => request('/sessions', { method: 'POST', body: JSON.stringify({ agentId }) }),
-    listMessages: async (sessionId) => (await request(`/sessions/${sessionId}/messages`)).map(mapMessage),
+    listMessages: (sessionId) => request(`/sessions/${sessionId}/messages`),
     addMessage,
     deleteSession: (sessionId) => request(`/sessions/${sessionId}`, { method: 'DELETE' }),
     setSessionAgent: (sessionId, agentId) => request(`/sessions/${sessionId}`, { method: 'PATCH', body: JSON.stringify({ agentId }) }),

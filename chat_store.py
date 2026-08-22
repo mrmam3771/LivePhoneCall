@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import sqlite3
 import time
 import uuid
@@ -62,8 +61,6 @@ def row_to_message(row: sqlite3.Row) -> dict:
         "content": row["content"], "mimeType": row["mime_type"], "duration": row["duration"],
         "createdAt": row["created_at"],
     }
-    if row["audio"] is not None:
-        item["audioBase64"] = base64.b64encode(row["audio"]).decode("ascii")
     return item
 
 
@@ -263,22 +260,19 @@ def fetch_session(database_path: str, session_id: str) -> dict:
 
 def insert_message(conn: sqlite3.Connection, session: sqlite3.Row, data: dict) -> dict:
     message_type = str(data.get("type", "text"))
+    if message_type == "audio":
+        raise ValueError("Audio recordings are not stored in live call mode")
     content = str(data.get("content", ""))
     if not content and message_type != "audio":
         raise ValueError("Message content is required")
-    audio_base64 = data.get("audioBase64", data.get("audio_base64"))
-    try:
-        audio = base64.b64decode(audio_base64, validate=True) if audio_base64 else None
-    except (ValueError, TypeError) as error:
-        raise ValueError("audioBase64 must be valid base64") from error
     timestamp, identifier = now_ms(), str(uuid.uuid4())
     conn.execute("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (
-        identifier, session["id"], str(data.get("role", "user")), message_type, content, audio,
-        data.get("mimeType", data.get("mime_type")), data.get("duration"), timestamp,
+        identifier, session["id"], str(data.get("role", "user")), message_type, content, None,
+        None, None, timestamp,
     ))
-    summary = f"Voice note · {format_duration(data.get('duration', 0))}" if message_type == "audio" else " ".join(content.split())
-    title = "Voice conversation / 语音会话" if session["title"] == "New conversation / 新会话" and message_type == "audio" else session["title"]
-    if session["title"] == "New conversation / 新会话" and message_type != "audio":
+    summary = " ".join(content.split())
+    title = session["title"]
+    if session["title"] == "New conversation / 新会话":
         title = summary[:34]
     conn.execute("UPDATE sessions SET title = ?, preview = ?, updated_at = ? WHERE id = ?", (title, summary[:62], timestamp, session["id"]))
     row = conn.execute("SELECT * FROM messages WHERE id = ?", (identifier,)).fetchone()

@@ -1,4 +1,3 @@
-import base64
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,7 +32,7 @@ class ChatStoreTests(unittest.TestCase):
         self.assertEqual(stored_session["title"], "Hello from a saved conversation")
         self.assertEqual(stored_session["preview"], "Hello from a saved conversation")
 
-    def test_audio_and_agent_deletion_are_persisted(self):
+    def test_audio_is_rejected_and_agent_deletion_reassigns_sessions(self):
         agent = self.client.post(
             "/api/chat/agents",
             json={
@@ -44,15 +43,12 @@ class ChatStoreTests(unittest.TestCase):
         self.assertEqual(agent["requestPath"], "/v1/chat/completions")
         self.assertEqual(agent["apiKey"], "local-test-key")
         session = self.client.post("/api/chat/sessions", json={"agent_id": agent["id"]}).get_json()
-        audio = base64.b64encode(b"opus bytes").decode()
-        self.client.post(
+        response = self.client.post(
             f"/api/chat/sessions/{session['id']}/messages",
-            json={"role": "user", "type": "audio", "content": "Voice note", "mime_type": "audio/webm", "duration": 3, "audio_base64": audio},
+            json={"role": "user", "type": "audio", "content": "Voice note"},
         )
-
-        messages = self.client.get(f"/api/chat/sessions/{session['id']}/messages").get_json()
-        self.assertEqual(messages[0]["audioBase64"], audio)
-        self.assertEqual(messages[0]["mimeType"], "audio/webm")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("not stored", response.get_json()["error"])
 
         self.client.delete(f"/api/chat/agents/{agent['id']}")
         updated_session = self.client.get("/api/chat/sessions").get_json()[0]

@@ -75,6 +75,13 @@ class VoiceAgentTests(unittest.TestCase):
         self.assertEqual(reply, "restored")
         self.assertEqual(captured["messages"][1:3], history)
 
+    def test_streaming_agent_yields_model_chunks(self):
+        agent = LangChainVoiceAgent()
+        model = SimpleNamespace(stream=lambda _messages: [SimpleNamespace(content="Hello"), SimpleNamespace(content=" world")])
+        connection = {"configured": True, "model": "test"}
+        with patch.object(agent, "_connection", return_value=connection), patch.object(agent, "_get_model", return_value=model):
+            self.assertEqual(list(agent.stream_chat("Hi", "call-stream")), ["Hello", " world"])
+
 
 if __name__ == "__main__":
     unittest.main()

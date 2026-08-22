@@ -129,16 +129,15 @@ async function sendMessage(content) {
   await addMessage({ role: 'user', type: 'text', content })
 }
 
-async function saveRecording(recording) {
-  await addMessage({
-    role: 'user',
-    type: 'audio',
-    content: 'Voice note / 语音留言',
-    audio: recording.blob,
-    mimeType: recording.mimeType,
-    duration: recording.duration,
-  }, recording.sessionId)
-  callPanelOpen.value = false
+function updateLiveMessage(role, text, complete) {
+  const id = `live-${role}`
+  const existing = messages.value.find((message) => message.id === id)
+  if (existing) existing.content = text
+  else messages.value.push({ id, role, type: 'text', content: text, createdAt: Date.now() })
+  if (complete) {
+    messages.value = messages.value.filter((message) => message.id !== id)
+    addMessage({ role, type: 'text', content: text })
+  }
 }
 
 onMounted(async () => {
@@ -188,7 +187,7 @@ onMounted(async () => {
 
       <MessageList :messages="messages" :loading="loading" :error="errorMessage" />
       <div class="interaction-dock">
-        <CallPanel v-if="callPanelOpen" :session-id="activeSessionId" @close="callPanelOpen = false" @recording-complete="saveRecording" />
+        <CallPanel v-if="callPanelOpen" :session-id="activeSessionId" :agent="activeAgent" :history="messages.filter((message) => message.role === 'user' || message.role === 'assistant').map((message) => ({ role: message.role, content: message.content }))" @close="callPanelOpen = false" @transcript="({ text, partial }) => updateLiveMessage('user', text, !partial)" @assistant="({ text, partial }) => updateLiveMessage('assistant', text, !partial)" />
         <ChatComposer :call-panel-open="callPanelOpen" @send="sendMessage" @toggle-call="callPanelOpen = !callPanelOpen" />
       </div>
     </main>

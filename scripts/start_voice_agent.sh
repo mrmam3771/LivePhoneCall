@@ -65,14 +65,15 @@ echo "Waiting for Qwen3-TTS model..."
 wait_until_ready "Qwen3-TTS" "$RUN_DIR/tts.pid" http://127.0.0.1:8001/health \
   '"ready":true' "$ROOT_DIR/qwen3-tts-service.log" 240
 
-start_if_stopped "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "$ROOT_DIR/qwen3-asr-service.log" 8000 \
+VOICE_AGENT_PORT="${VOICE_AGENT_PORT:-8000}"
+start_if_stopped "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "$ROOT_DIR/qwen3-asr-service.log" "$VOICE_AGENT_PORT" \
   env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TTS_SERVICE_URL=http://127.0.0.1:8001 \
   "$ROOT_DIR/.venv-wsl/bin/qwen-asr-demo-streaming" \
   --asr-model-path "$ROOT_DIR/models/Qwen3-ASR-0.6B" --gpu-memory-utilization 0.45 \
-  --max-model-len 16384 --host 0.0.0.0 --port 8000
+  --max-model-len 16384 --host 0.0.0.0 --port "$VOICE_AGENT_PORT"
 
 echo "Waiting for Qwen3-ASR voice agent..."
-wait_until_ready "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" http://127.0.0.1:8000/api/voice/health \
+wait_until_ready "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "http://127.0.0.1:$VOICE_AGENT_PORT/api/voice/health" \
   '"agent"' "$ROOT_DIR/qwen3-asr-service.log" 240
 
-echo "Voice agent: http://127.0.0.1:8000"
+echo "Voice agent: http://127.0.0.1:$VOICE_AGENT_PORT"

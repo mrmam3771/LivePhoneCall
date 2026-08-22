@@ -102,7 +102,18 @@ Agent API keys) is ignored by Git and should be treated as sensitive local data.
 
 Each custom Agent can set its provider, model, Base URL, API Key, and request path.
 These fields are stored per Agent so separate conversations can use separate models.
-This preview intentionally does not call ASR, LLM, or TTS APIs yet.
+The phone icon starts a live, non-recording call. Browser audio is resampled to
+16 kHz and streamed directly to Qwen3-ASR; after roughly 0.9 seconds of silence
+the turn is finalized, its text is sent to the selected Agent, and streamed model
+text is passed sentence-by-sentence to Qwen3-TTS. SQLite stores only the resulting
+user and assistant text, never microphone audio.
+
+For Vite development, start the model stack on its development port in a second
+terminal after its models are installed:
+
+```powershell
+wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && VOICE_AGENT_PORT=8003 bash scripts/start_voice_agent.sh'
+```
 
 Build and test the frontend with `yarn build` and `yarn test`. The next
 integration step is to connect the Vue composer and phone workflow to the

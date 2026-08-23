@@ -5,12 +5,16 @@ description = "Local real-time speech-to-text with Qwen3-ASR"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "fastapi>=0.116.0",
+    "httpx>=0.28.1",
     "langchain",
     "langchain-anthropic>=1.0.4",
     "langchain-google-genai>=4.3.5",
+    "langchain-nvidia-ai-endpoints>=1.0.2",
     "langchain-openai",
     "modelscope>=1.39.1",
     "qwen-asr[vllm]",
+    "uvicorn[standard]>=0.35.0",
 ]
 
 [tool.uv.sources]

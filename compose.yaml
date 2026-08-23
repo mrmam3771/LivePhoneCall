@@ -1,0 +1,43 @@
+name: qwen-voice
+
+services:
+  app:
+    image: qwen-voice-workspace:local
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "${QWEN_VOICE_PORT:-8000}:8000"
+    environment:
+      APP_PORT: "8000"
+      ASR_GPU_MEMORY_UTILIZATION: "${ASR_GPU_MEMORY_UTILIZATION:-0.45}"
+      ASR_MAX_MODEL_LEN: "${ASR_MAX_MODEL_LEN:-16384}"
+      MODEL_START_TIMEOUT: "${MODEL_START_TIMEOUT:-300}"
+      MODEL_CATALOG_PROXY: "${MODEL_CATALOG_PROXY:-}"
+      TLS_CERT_FILE: "${TLS_CERT_FILE:-}"
+      TLS_KEY_FILE: "${TLS_KEY_FILE:-}"
+    volumes:
+      - type: bind
+        source: ./models
+        target: /models
+        read_only: true
+      - type: bind
+        source: ./data
+        target: /data
+      - type: bind
+        source: ./.cert
+        target: /certs
+        read_only: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${TLS_CERT_FILE}\" ]; then curl -fkSs https://127.0.0.1:8000/api/health; else curl -fSs http://127.0.0.1:8000/api/health; fi"]
+      interval: 20s
+      timeout: 5s
+      start_period: 300s
+      retries: 5

@@ -1,14 +1,106 @@
-# Qwen3 Voice Agent
+# LivePhoneCall
 
-Local Chinese/English voice-agent test bench built from Qwen3-ASR 0.6B,
-Qwen3-TTS 0.6B CustomVoice, and LangChain. ASR and TTS use separate uv
-environments because their upstream packages pin incompatible `transformers`
-patch versions. All clients use the single public web port `8000`; the TTS
-process listens internally on `localhost:8001`.
+Local-first Chinese/English voice conversations powered by streaming Qwen3 ASR
+and TTS, pluggable language models, and an installable Vue PWA.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12-3776ab.svg)](pyproject.toml)
+[![Vue](https://img.shields.io/badge/Vue-3-42b883.svg)](frontend/package.json)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ed.svg)](compose.yaml)
+
+![LivePhoneCall bilingual conversation interface](docs/assets/livephonecall-overview.png)
+
+## Highlights
+
+- Live, non-recording phone-style conversations with interruption controls.
+- Streaming Qwen3-ASR transcription and sentence-level Qwen3-TTS PCM playback.
+- Chinese, English, and mixed-language conversations in the same workspace.
+- OpenAI, Anthropic, Gemini, DeepSeek, DashScope, Ollama, and custom compatible providers.
+- Per-agent instructions, provider, model, language, and reply voice settings.
+- Local SQLite conversation history; microphone audio is never persisted.
+- Responsive installable PWA plus a reproducible Windows/WSL2 Docker deployment.
+
+## Architecture
+
+```text
+Browser / mobile PWA
+        |
+        v
+FastAPI :8002  --->  SQLite conversations
+   |       |
+   |       +------->  pluggable LLM provider (SSE)
+   |
+   +--------------->  isolated model worker :8003
+                          |              |
+                          v              v
+                    Qwen3-ASR       Qwen3-TTS :8001
+```
+
+## How it works
+
+ASR and TTS use isolated model environments because their upstream packages pin
+incompatible `transformers` patch versions. FastAPI on `localhost:8002` is the
+only backend interface used by the Vue app; ports `8001` and `8003` are internal
+model adapters and must not be called by frontend code.
+
+Backend modules live in `backend/modules/`: `chat` owns SQLite conversations,
+`voice` owns streaming ASR, `agent` owns model SSE, and `tts` owns streaming PCM.
+The worker adapter hides process isolation behind one FastAPI interface.
 
 The start script limits ASR to a 16K context so both models fit concurrently in
 the tested 16GB GPU. Increasing this value can prevent vLLM from allocating its
 KV cache while TTS is resident.
+
+## Windows Docker deployment
+
+The repository includes one production image that builds the Vue PWA, the
+FastAPI application, and isolated ASR/TTS runtimes. Only port 8000 is exposed;
+ports 8001 and 8003 stay inside the container. Model weights are mounted
+read-only from `models/` so rebuilding or exporting the runtime image does not
+duplicate several gigabytes of weights. SQLite data is persisted in `data/`.
+
+Requirements on the destination Windows PC are Docker Desktop using the WSL2
+engine, a current NVIDIA Windows driver, and at least 16 GB of GPU memory for the
+default settings. Copy this project together with its `models/` directory, then
+run from PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy_docker_windows.ps1
+docker compose logs -f app
+```
+
+The script checks Docker, GPU passthrough, and both model directories before it
+builds. Runtime settings live in `.env`; the first run creates it from
+`.env.docker.example`. Stop or update the deployment with:
+
+```powershell
+docker compose down
+docker compose up --build --detach
+```
+
+For phone microphone access and PWA installation, put a LAN-trusted certificate
+at `.cert/lan-cert.pem` and `.cert/lan-key.pem`, then set these values in `.env`:
+
+```dotenv
+QWEN_VOICE_PORT=8443
+TLS_CERT_FILE=/certs/lan-cert.pem
+TLS_KEY_FILE=/certs/lan-key.pem
+```
+
+Open `https://<PC-LAN-IP>:8443` after trusting the issuing CA on the phone. Plain
+HTTP remains useful on the Windows host, but mobile browsers will not grant it
+microphone or PWA installation privileges over a LAN address.
+
+## Web PWA
+
+The Vue client is an installable PWA on Chromium, Android, and iOS/iPadOS. Its
+manifest includes regular, maskable, and Apple touch icons. The generated
+service worker precaches only the frontend application shell and static assets;
+API calls, microphone chunks, model streams, and TTS audio are never cached.
+When a new frontend version is available, the UI asks before reloading so an
+active phone call is not interrupted. The interface can open offline, while AI,
+chat synchronization, ASR, and TTS correctly remain dependent on the local
+FastAPI service.
 
 ## Install
 
@@ -71,8 +163,16 @@ the settings page takes precedence.
 ## Start
 
 ```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_voice_agent.sh'
+wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_backend.sh'
+cd frontend
+yarn vite --host 0.0.0.0
 ```
+
+FastAPI documentation is available at `http://127.0.0.1:8002/docs`. The Vue
+workspace is available locally at `http://127.0.0.1:8000` and, after allowing
+inbound TCP 8000 from `LocalSubnet` in Windows Firewall, at
+`http://<PC-LAN-IP>:8000`. It proxies every `/api/*` request to FastAPI, so ports
+8001, 8002, and 8003 should remain private to this PC.
 
 ## Vue frontend
 
@@ -93,7 +193,8 @@ yarn
 yarn dev
 ```
 
-Open `http://127.0.0.1:8000`. `yarn dev` starts Vite and the local-only SQLite
+Open `http://127.0.0.1:8000`, or `http://<PC-LAN-IP>:8000` from another device on
+the same network. `yarn dev` starts Vite on all network interfaces and the local-only SQLite
 service together. Text, recorded audio, sessions, and Agents are stored in
 `chat-data.sqlite3` at the project root, which makes backup and one-device-at-a-time
 file synchronization straightforward. Do not synchronize a live SQLite database
@@ -119,7 +220,8 @@ Build and test the frontend with `yarn build` and `yarn test`. The next
 integration step is to connect the Vue composer and phone workflow to the
 existing `/api/*` endpoints, then serve the production bundle from Flask.
 
-For mobile microphone testing, use a trusted HTTPS URL. A Cloudflare Quick
+For mobile microphone testing, use a trusted HTTPS URL. Browsers do not grant
+microphone access to a plain `http://<PC-LAN-IP>` origin. A Cloudflare Quick
 Tunnel is the shortest test path (no account required):
 
 ```powershell
@@ -133,6 +235,14 @@ only with non-sensitive test audio and stop it with `Ctrl+C` afterward. For
 display or playback without microphone access, a phone on the same Wi-Fi can
 use `http://<PC-LAN-IP>:8000` after allowing inbound TCP 8000 in Windows
 Firewall. `localhost` on a phone means the phone itself.
+
+For private LAN-only HTTPS, install `mkcert`, trust its local CA, and generate a
+certificate for the PC LAN address. This workspace reads `.cert/lan-cert.pem`
+and `.cert/lan-key.pem` when `scripts/start_lan_https.ps1` builds the PWA and
+starts the production preview on 8443.
+Install `frontend/public/qwen-local-rootCA.cer` on the phone and explicitly trust
+it, then open `https://<PC-LAN-IP>:8443`. Never copy the mkcert `rootCA-key.pem`
+to another device.
 
 ```powershell
 wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/stop_voice_agent.sh'

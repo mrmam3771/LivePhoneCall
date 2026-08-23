@@ -5,7 +5,7 @@ const DEFAULT_AGENT = {
   id: DEFAULT_AGENT_ID,
   name: 'Qwen General',
   description: 'Balanced bilingual voice assistant',
-  systemPrompt: 'You are a concise and helpful bilingual voice assistant.',
+  systemPrompt: '',
   provider: 'deepseek',
   baseUrl: '',
   requestPath: '/chat/completions',

@@ -57,15 +57,9 @@ if [[ ! -d models/Qwen3-TTS-12Hz-0.6B-CustomVoice ]]; then
   exit 1
 fi
 
-start_if_stopped "Qwen3-TTS" "$RUN_DIR/tts.pid" "$ROOT_DIR/qwen3-tts-service.log" 8001 \
-  "$ROOT_DIR/qwen3-tts-service/.venv/bin/python" "$ROOT_DIR/qwen3-tts-service/app.py" \
-  --model-path "$ROOT_DIR/models/Qwen3-TTS-12Hz-0.6B-CustomVoice" --host 127.0.0.1 --port 8001
-
-echo "Waiting for Qwen3-TTS model..."
-wait_until_ready "Qwen3-TTS" "$RUN_DIR/tts.pid" http://127.0.0.1:8001/health \
-  '"ready":true' "$ROOT_DIR/qwen3-tts-service.log" 240
-
 VOICE_AGENT_PORT="${VOICE_AGENT_PORT:-8000}"
+# vLLM must reserve its fixed GPU budget before PyTorch TTS expands into the
+# remaining memory on 16 GB cards.
 start_if_stopped "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "$ROOT_DIR/qwen3-asr-service.log" "$VOICE_AGENT_PORT" \
   env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TTS_SERVICE_URL=http://127.0.0.1:8001 \
   "$ROOT_DIR/.venv-wsl/bin/qwen-asr-demo-streaming" \
@@ -75,5 +69,13 @@ start_if_stopped "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "$ROOT_DIR/qwen3-asr
 echo "Waiting for Qwen3-ASR voice agent..."
 wait_until_ready "Qwen3-ASR voice agent" "$RUN_DIR/asr.pid" "http://127.0.0.1:$VOICE_AGENT_PORT/api/voice/health" \
   '"agent"' "$ROOT_DIR/qwen3-asr-service.log" 240
+
+start_if_stopped "Qwen3-TTS" "$RUN_DIR/tts.pid" "$ROOT_DIR/qwen3-tts-service.log" 8001 \
+  "$ROOT_DIR/qwen3-tts-service/.venv/bin/python" "$ROOT_DIR/qwen3-tts-service/app.py" \
+  --model-path "$ROOT_DIR/models/Qwen3-TTS-12Hz-0.6B-CustomVoice" --host 127.0.0.1 --port 8001
+
+echo "Waiting for Qwen3-TTS model..."
+wait_until_ready "Qwen3-TTS" "$RUN_DIR/tts.pid" http://127.0.0.1:8001/health \
+  '"ready":true' "$ROOT_DIR/qwen3-tts-service.log" 240
 
 echo "Voice agent: http://127.0.0.1:$VOICE_AGENT_PORT"

@@ -1,22 +1,25 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { Bot, Check, CopyPlus, Save, Trash2, X } from '@lucide/vue'
+import { canSaveAgent, normaliseAgentDraft } from '../lib/agentDraft'
+import { VOICE_OPTIONS } from '../lib/voiceCatalog'
 
 const props = defineProps({
   agents: { type: Array, required: true },
   selectedAgentId: { type: String, required: true },
   busy: { type: Boolean, default: false },
+  error: { type: String, default: '' },
 })
 const emit = defineEmits(['close', 'delete', 'save', 'select'])
-const emptyAgent = () => ({ id: '', name: '', description: '', systemPrompt: '', language: 'Auto', voice: 'Vivian', builtIn: false })
+const emptyAgent = () => ({ id: '', name: '', description: '', systemPrompt: '', language: 'Auto', voice: 'Auto', builtIn: false })
 const draft = reactive(emptyAgent())
 const editingExisting = computed(() => Boolean(draft.id))
-const canSave = computed(() => draft.name.trim() && draft.systemPrompt.trim())
+const canSave = computed(() => canSaveAgent(draft))
 
 function editAgent(agent) { Object.assign(draft, emptyAgent(), agent) }
 function createAgent() { Object.assign(draft, emptyAgent()) }
 function duplicateAgent() { Object.assign(draft, { ...draft, id: '', name: `${draft.name} Copy`, builtIn: false }) }
-function submit() { if (canSave.value && !props.busy) emit('save', { ...draft, name: draft.name.trim(), description: draft.description.trim(), systemPrompt: draft.systemPrompt.trim(), model: draft.model.trim() }) }
+function submit() { if (canSave.value && !props.busy) emit('save', normaliseAgentDraft(draft)) }
 function closeOnEscape(event) { if (event.key === 'Escape' && !props.busy) emit('close') }
 
 watch(() => props.selectedAgentId, (id) => {
@@ -52,13 +55,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
               <label><span>Name</span><input v-model="draft.name" maxlength="48" required :disabled="draft.builtIn" placeholder="e.g. Sales assistant" /></label>
               <label><span>Description</span><input v-model="draft.description" maxlength="100" :disabled="draft.builtIn" placeholder="What this Agent is for" /></label>
             </div>
-            <label class="prompt-field"><span>System instructions</span><textarea v-model="draft.systemPrompt" rows="6" maxlength="6000" required :disabled="draft.builtIn" placeholder="Define role, tone, constraints and desired behavior..." /><small>{{ draft.systemPrompt.length }} / 6000</small></label>
+            <label class="prompt-field"><span>System instructions <em class="optional-label">Optional</em></span><textarea v-model="draft.systemPrompt" rows="6" maxlength="6000" :disabled="draft.builtIn" placeholder="Add role, tone or constraints when this Agent needs custom behavior" /><small>{{ draft.systemPrompt.length }} / 6000</small></label>
             <div class="field-grid two-columns">
               <label><span>Response language</span><select v-model="draft.language" :disabled="draft.builtIn"><option>Auto</option><option>Chinese</option><option>English</option></select></label>
-              <label><span>Reply voice</span><select v-model="draft.voice" :disabled="draft.builtIn"><option>Vivian</option><option>Serena</option><option>Ryan</option><option>Aiden</option><option>Dylan</option><option>Eric</option><option>Sohee</option></select></label>
+              <label><span>Reply voice</span><select v-model="draft.voice" :disabled="draft.builtIn"><option v-for="voice in VOICE_OPTIONS" :key="voice.id" :value="voice.id">{{ voice.name }}</option></select></label>
             </div>
 
             <footer class="agent-form-actions">
+              <p v-if="error" class="agent-form-error" role="alert">{{ error }}</p>
               <button v-if="editingExisting" class="secondary-action" type="button" :disabled="busy" @click="$emit('select', draft.id)"><Bot :size="16" /> Use Agent</button>
               <button v-if="draft.builtIn" class="secondary-action" type="button" :disabled="busy" @click="duplicateAgent"><CopyPlus :size="16" /> Duplicate</button>
               <button v-if="editingExisting && !draft.builtIn" class="danger-action" type="button" :disabled="busy" @click="$emit('delete', draft.id)"><Trash2 :size="16" /> Delete</button>

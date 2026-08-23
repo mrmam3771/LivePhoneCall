@@ -3,6 +3,7 @@ __pycache__/
 *.py[oc]
 build/
 dist/
+dev-dist/
 wheels/
 *.egg-info
 
@@ -10,11 +11,44 @@ wheels/
 .venv
 .venv-wsl
 qwen3-tts-service/.venv
-models/
-qwen3-asr-service.log
-qwen3-tts-service.log
-.run/
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
 .voice-agent/
-chat-data.sqlite3
-chat-data.sqlite3-shm
-chat-data.sqlite3-wal
+.cert/
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*.json
+*secrets*.json
+
+# Runtime data and logs
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+data/
+.run/
+.cache/
+
+# Local models and external experiments
+models/
+SenseVoice/
+
+# Test and editor artifacts
+.playwright-mcp/
+.codegraph/
+.coverage
+htmlcov/
+.pytest_cache/
+.DS_Store
+Thumbs.db
+
+frontend/public/qwen-local-rootCA.*

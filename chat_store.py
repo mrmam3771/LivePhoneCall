@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 import uuid
@@ -11,26 +12,28 @@ from flask import Flask, jsonify, request
 
 
 ROOT_DIR = Path(__file__).resolve().parent
-DEFAULT_DATABASE_PATH = ROOT_DIR / "chat-data.sqlite3"
+DEFAULT_DATABASE_PATH = Path(os.getenv("CHAT_DATABASE_PATH", ROOT_DIR / "chat-data.sqlite3"))
 DEFAULT_AGENT_ID = "qwen-general"
 DEFAULT_MODEL_ID = "deepseek-chat"
+DEFAULT_PROVIDER_ID = "deepseek"
 DEFAULT_AGENT = {
     "id": DEFAULT_AGENT_ID,
     "name": "Qwen General",
     "description": "Balanced bilingual voice assistant",
-    "system_prompt": "You are a concise and helpful bilingual voice assistant.",
+    "system_prompt": "",
     "provider": "deepseek",
     "base_url": "",
     "request_path": "/chat/completions",
     "api_key": "",
     "model": "deepseek-chat",
     "language": "Auto",
-    "voice": "Vivian",
+    "voice": "Auto",
     "built_in": True,
     "created_at": 0,
     "updated_at": 0,
 }
 DEFAULT_MODEL = {"id": DEFAULT_MODEL_ID, "name": "DeepSeek Chat", "provider": "deepseek", "base_url": "https://api.deepseek.com/v1", "request_path": "/chat/completions", "api_key": "", "model": "deepseek-chat", "built_in": True, "created_at": 0, "updated_at": 0}
+DEFAULT_PROVIDER = {"id": DEFAULT_PROVIDER_ID, "name": "DeepSeek", "api": "openai-completions", "base_url": "https://api.deepseek.com/v1", "api_key": "", "built_in": True, "created_at": 0, "updated_at": 0}
 
 
 def now_ms() -> int:
@@ -66,7 +69,10 @@ def row_to_message(row: sqlite3.Row) -> dict:
 
 
 def row_to_model(row: sqlite3.Row) -> dict:
-    return {"id": row["id"], "name": row["name"], "provider": row["provider"], "baseUrl": row["base_url"], "requestPath": row["request_path"], "apiKey": row["api_key"], "model": row["model"], "builtIn": bool(row["built_in"]), "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+    return {"id": row["id"], "providerId": row["provider_id"], "name": row["name"], "provider": row["provider"], "baseUrl": row["base_url"], "requestPath": row["request_path"], "apiKey": row["api_key"], "model": row["model"], "builtIn": bool(row["built_in"]), "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+
+def row_to_provider(row: sqlite3.Row) -> dict:
+    return {"id": row["id"], "name": row["name"], "api": row["api"], "baseUrl": row["base_url"], "apiKey": row["api_key"], "builtIn": bool(row["built_in"]), "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
 
 
 def create_app(database_path: Path | str = DEFAULT_DATABASE_PATH, testing: bool = False) -> Flask:
@@ -105,9 +111,48 @@ def create_app(database_path: Path | str = DEFAULT_DATABASE_PATH, testing: bool 
     def bootstrap():
         with connection() as conn:
             agents = [row_to_agent(row) for row in conn.execute("SELECT * FROM agents ORDER BY built_in DESC, updated_at DESC")]
+            providers = [row_to_provider(row) for row in conn.execute("SELECT * FROM providers ORDER BY built_in DESC, updated_at DESC")]
             models = [row_to_model(row) for row in conn.execute("SELECT * FROM models ORDER BY built_in DESC, updated_at DESC")]
             sessions = [row_to_session(row) for row in conn.execute("SELECT * FROM sessions ORDER BY updated_at DESC")]
-        return as_json({"agents": agents, "models": models, "sessions": sessions})
+        return as_json({"agents": agents, "providers": providers, "models": models, "sessions": sessions})
+
+    @app.get("/api/chat/providers")
+    def list_providers():
+        with connection() as conn:
+            return as_json([row_to_provider(row) for row in conn.execute("SELECT * FROM providers ORDER BY built_in DESC, updated_at DESC")])
+
+    @app.post("/api/chat/providers")
+    def create_provider():
+        data, identifier, timestamp = payload(), str(uuid.uuid4()), now_ms()
+        if not str(data.get("name", "")).strip():
+            raise ValueError("Provider name is required")
+        provider = normalise_provider(data, identifier, False, timestamp)
+        with connection() as conn:
+            conn.execute("INSERT INTO providers VALUES (:id,:name,:api,:base_url,:api_key,:built_in,:created_at,:updated_at)", provider)
+        return as_json(fetch_provider(app.config["DATABASE_PATH"], identifier)), 201
+
+    @app.put("/api/chat/providers/<provider_id>")
+    def update_provider(provider_id: str):
+        data = payload()
+        with connection() as conn:
+            existing = conn.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone()
+            if not existing:
+                raise LookupError("Provider not found")
+            provider = normalise_provider({**row_to_provider(existing), **data}, provider_id, bool(existing["built_in"]), existing["created_at"])
+            conn.execute("UPDATE providers SET name=:name,api=:api,base_url=:base_url,api_key=:api_key,updated_at=:updated_at WHERE id=:id", provider)
+        return as_json(fetch_provider(app.config["DATABASE_PATH"], provider_id))
+
+    @app.delete("/api/chat/providers/<provider_id>")
+    def delete_provider(provider_id: str):
+        if provider_id == DEFAULT_PROVIDER_ID:
+            raise ValueError("The built-in provider cannot be deleted")
+        with connection() as conn:
+            if not conn.execute("SELECT 1 FROM providers WHERE id=?", (provider_id,)).fetchone():
+                raise LookupError("Provider not found")
+            if conn.execute("SELECT 1 FROM models WHERE provider_id=?", (provider_id,)).fetchone():
+                raise ValueError("Delete or move this provider's models first")
+            conn.execute("DELETE FROM providers WHERE id=?", (provider_id,))
+        return "", 204
 
     @app.get("/api/chat/models")
     def list_models():
@@ -119,7 +164,10 @@ def create_app(database_path: Path | str = DEFAULT_DATABASE_PATH, testing: bool 
         data, identifier, timestamp = payload(), str(uuid.uuid4()), now_ms()
         if not str(data.get("name", "")).strip() or not str(data.get("model", "")).strip(): raise ValueError("Model name and model identifier are required")
         model = normalise_model(data, identifier, False, timestamp)
-        with connection() as conn: conn.execute("INSERT INTO models VALUES (:id,:name,:provider,:base_url,:request_path,:api_key,:model,:built_in,:created_at,:updated_at)", model)
+        with connection() as conn:
+            if not conn.execute("SELECT 1 FROM providers WHERE id=?", (model["provider_id"],)).fetchone():
+                raise ValueError("Selected provider does not exist")
+            conn.execute("INSERT INTO models (id,name,provider_id,provider,base_url,request_path,api_key,model,built_in,created_at,updated_at) VALUES (:id,:name,:provider_id,:provider,:base_url,:request_path,:api_key,:model,:built_in,:created_at,:updated_at)", model)
         return as_json(fetch_model(app.config["DATABASE_PATH"], identifier)), 201
 
     @app.put("/api/chat/models/<model_id>")
@@ -129,7 +177,9 @@ def create_app(database_path: Path | str = DEFAULT_DATABASE_PATH, testing: bool 
             existing = conn.execute("SELECT * FROM models WHERE id=?", (model_id,)).fetchone()
             if not existing: raise LookupError("Model profile not found")
             model = normalise_model({**row_to_model(existing), **data}, model_id, bool(existing["built_in"]), existing["created_at"])
-            conn.execute("UPDATE models SET name=:name,provider=:provider,base_url=:base_url,request_path=:request_path,api_key=:api_key,model=:model,updated_at=:updated_at WHERE id=:id", model)
+            if not conn.execute("SELECT 1 FROM providers WHERE id=?", (model["provider_id"],)).fetchone():
+                raise ValueError("Selected provider does not exist")
+            conn.execute("UPDATE models SET name=:name,provider_id=:provider_id,provider=:provider,base_url=:base_url,request_path=:request_path,api_key=:api_key,model=:model,updated_at=:updated_at WHERE id=:id", model)
         return as_json(fetch_model(app.config["DATABASE_PATH"], model_id))
 
     @app.delete("/api/chat/models/<model_id>")
@@ -197,7 +247,8 @@ def create_app(database_path: Path | str = DEFAULT_DATABASE_PATH, testing: bool 
                 raise ValueError("Selected Agent does not exist")
             model_id = data.get("modelId", data.get("model_id", DEFAULT_MODEL_ID))
             if not conn.execute("SELECT 1 FROM models WHERE id=?", (model_id,)).fetchone(): raise ValueError("Selected model does not exist")
-            conn.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)", (identifier, agent_id, model_id, "New conversation / 新会话", "No messages yet / 暂无消息", timestamp, timestamp))
+            conn.execute("""INSERT INTO sessions (id,agent_id,model_id,title,preview,created_at,updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""", (identifier, agent_id, model_id, "New conversation / 新会话", "No messages yet / 暂无消息", timestamp, timestamp))
         return as_json(fetch_session(app.config["DATABASE_PATH"], identifier)), 201
 
     @app.patch("/api/chat/sessions/<session_id>")
@@ -242,6 +293,7 @@ def initialise_database(database_path: str | Path) -> None:
     path = Path(database_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript("""
@@ -262,6 +314,7 @@ def initialise_database(database_path: str | Path) -> None:
             CREATE INDEX IF NOT EXISTS messages_session_created ON messages(session_id, created_at);
             CREATE INDEX IF NOT EXISTS sessions_updated ON sessions(updated_at DESC);
             CREATE TABLE IF NOT EXISTS models (id TEXT PRIMARY KEY, name TEXT NOT NULL, provider TEXT NOT NULL, base_url TEXT NOT NULL DEFAULT '', request_path TEXT NOT NULL DEFAULT '/chat/completions', api_key TEXT NOT NULL DEFAULT '', model TEXT NOT NULL, built_in INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS providers (id TEXT PRIMARY KEY, name TEXT NOT NULL, api TEXT NOT NULL DEFAULT 'openai-completions', base_url TEXT NOT NULL DEFAULT '', api_key TEXT NOT NULL DEFAULT '', built_in INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
         """)
         columns = {row[1] for row in conn.execute("PRAGMA table_info(agents)")}
         if "request_path" not in columns:
@@ -271,15 +324,92 @@ def initialise_database(database_path: str | Path) -> None:
         session_columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)")}
         if "model_id" not in session_columns:
             conn.execute("ALTER TABLE sessions ADD COLUMN model_id TEXT NOT NULL DEFAULT 'deepseek-chat'")
-        conn.execute("INSERT OR IGNORE INTO models VALUES (:id,:name,:provider,:base_url,:request_path,:api_key,:model,:built_in,:created_at,:updated_at)", DEFAULT_MODEL)
+        model_columns = {row[1] for row in conn.execute("PRAGMA table_info(models)")}
+        if "provider_id" not in model_columns:
+            conn.execute("ALTER TABLE models ADD COLUMN provider_id TEXT NOT NULL DEFAULT 'deepseek'")
+        conn.execute("INSERT OR IGNORE INTO providers VALUES (:id,:name,:api,:base_url,:api_key,:built_in,:created_at,:updated_at)", DEFAULT_PROVIDER)
+        conn.execute("""INSERT OR IGNORE INTO models (id,name,provider_id,provider,base_url,request_path,api_key,model,built_in,created_at,updated_at)
+            VALUES (:id,:name,:provider_id,:provider,:base_url,:request_path,:api_key,:model,:built_in,:created_at,:updated_at)""", {**DEFAULT_MODEL, "provider_id": DEFAULT_PROVIDER_ID})
         # Migrate each historical Agent connection into a separate reusable model profile.
         for row in conn.execute("SELECT * FROM agents").fetchall():
             legacy_id = f"legacy-model-{row[0]}"
-            conn.execute("INSERT OR IGNORE INTO models VALUES (?,?,?,?,?,?,?,?,?,?)", (legacy_id, f"{row[1]} model", row[4], row[5], row[6], row[7], row[8], 0, row[12], row[13]))
+            conn.execute("""INSERT OR IGNORE INTO models (id,name,provider_id,provider,base_url,request_path,api_key,model,built_in,created_at,updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)""", (legacy_id, f"{row[1]} model", legacy_id, row[4], row[5], row[6], row[7], row[8], 0, row[12], row[13]))
             conn.execute("UPDATE sessions SET model_id=? WHERE agent_id=? AND model_id=?", (legacy_id, row[0], DEFAULT_MODEL_ID))
         conn.execute("""INSERT OR IGNORE INTO agents (id, name, description, system_prompt, provider, base_url, request_path, api_key, model,
             language, voice, built_in, created_at, updated_at) VALUES (:id, :name, :description, :system_prompt, :provider, :base_url,
             :request_path, :api_key, :model, :language, :voice, :built_in, :created_at, :updated_at)""", DEFAULT_AGENT)
+        conn.execute("UPDATE agents SET system_prompt='' WHERE id=?", (DEFAULT_AGENT_ID,))
+        # Old releases stored endpoint credentials on each model. Materialise one Provider per
+        # old connection profile so key material becomes provider-owned without losing sessions.
+        for row in conn.execute("SELECT * FROM models").fetchall():
+            provider_id = row["provider_id"] or (DEFAULT_PROVIDER_ID if row["id"] == DEFAULT_MODEL_ID else f"legacy-provider-{row['id']}")
+            if row["id"] == DEFAULT_MODEL_ID:
+                provider_id = DEFAULT_PROVIDER_ID
+            elif provider_id == DEFAULT_PROVIDER_ID and (row["base_url"] or row["api_key"]):
+                provider_id = f"legacy-provider-{row['id']}"
+            provider = {
+                "id": provider_id,
+                "name": "DeepSeek" if provider_id == DEFAULT_PROVIDER_ID else f"{row['name']} provider",
+                "api": "openai-completions",
+                "base_url": row["base_url"], "api_key": row["api_key"],
+                "built_in": int(provider_id == DEFAULT_PROVIDER_ID),
+                "created_at": row["created_at"], "updated_at": row["updated_at"],
+            }
+            conn.execute("INSERT OR IGNORE INTO providers VALUES (:id,:name,:api,:base_url,:api_key,:built_in,:created_at,:updated_at)", provider)
+            conn.execute("UPDATE models SET provider_id=?, base_url='', api_key='' WHERE id=?", (provider_id, row["id"]))
+        conn.execute("CREATE INDEX IF NOT EXISTS models_provider ON models(provider_id)")
+        conn.execute(
+            """UPDATE messages SET type='thinking'
+               WHERE role='assistant' AND type='text'
+                 AND content LIKE 'Here''s a thinking process:%'"""
+        )
+        conn.execute(
+            """UPDATE sessions
+               SET preview=COALESCE((
+                   SELECT substr(content, 1, 62) FROM messages
+                   WHERE session_id=sessions.id AND type!='thinking'
+                   ORDER BY created_at DESC LIMIT 1
+               ), 'Thinking')
+               WHERE preview LIKE 'Here''s a thinking process:%'"""
+        )
+        _repair_misaligned_sessions(conn)
+
+
+def conversation_title(content: str) -> str:
+    summary = " ".join(content.split()).strip()
+    if summary.casefold().rstrip("!！。?.？") in {"hi", "hello", "hey", "你好", "您好", "在吗"}:
+        return "Greeting / 问候"
+    return summary[:34] or "New conversation / 新会话"
+
+
+def _repair_misaligned_sessions(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("SELECT * FROM sessions WHERE typeof(created_at) != 'integer'").fetchall()
+    for session in rows:
+        user_messages = conn.execute(
+            "SELECT content,created_at FROM messages WHERE session_id=? AND role='user' ORDER BY created_at",
+            (session["id"],),
+        ).fetchall()
+        meaningful = next((row for row in user_messages if conversation_title(row["content"]) != "Greeting / 问候"), None)
+        first = meaningful or (user_messages[0] if user_messages else None)
+        last = conn.execute(
+            "SELECT content FROM messages WHERE session_id=? ORDER BY created_at DESC LIMIT 1",
+            (session["id"],),
+        ).fetchone()
+        model_id = session["model_id"]
+        if not conn.execute("SELECT 1 FROM models WHERE id=?", (model_id,)).fetchone():
+            model_id = DEFAULT_MODEL_ID
+        created_at = first["created_at"] if first else session["updated_at"]
+        conn.execute(
+            "UPDATE sessions SET model_id=?,title=?,preview=?,created_at=? WHERE id=?",
+            (
+                model_id,
+                conversation_title(first["content"]) if first else "New conversation / 新会话",
+                " ".join(last["content"].split())[:62] if last else "No messages yet / 暂无消息",
+                created_at,
+                session["id"],
+            ),
+        )
 
 
 def normalise_agent(data: dict, identifier: str, built_in: bool, created_at: int) -> dict:
@@ -290,13 +420,23 @@ def normalise_agent(data: dict, identifier: str, built_in: bool, created_at: int
         "provider": str(data.get("provider", "custom")), "base_url": str(data.get("baseUrl", data.get("base_url", ""))),
         "request_path": str(data.get("requestPath", data.get("request_path", "/chat/completions"))) or "/chat/completions",
         "api_key": str(data.get("apiKey", data.get("api_key", ""))),
-        "model": str(data.get("model", "")), "language": str(data.get("language", "Auto")), "voice": str(data.get("voice", "Vivian")),
+        "model": str(data.get("model", "")), "language": str(data.get("language", "Auto")), "voice": str(data.get("voice", "Auto")),
         "built_in": int(built_in), "created_at": created_at, "updated_at": timestamp,
     }
 
 
 def normalise_model(data: dict, identifier: str, built_in: bool, created_at: int) -> dict:
-    return {"id": identifier, "name": str(data.get("name", "")).strip(), "provider": str(data.get("provider", "custom")), "base_url": str(data.get("baseUrl", data.get("base_url", ""))), "request_path": str(data.get("requestPath", data.get("request_path", "/chat/completions"))) or "/chat/completions", "api_key": str(data.get("apiKey", data.get("api_key", ""))), "model": str(data.get("model", "")).strip(), "built_in": int(built_in), "created_at": created_at, "updated_at": now_ms()}
+    return {"id": identifier, "provider_id": str(data.get("providerId", data.get("provider_id", DEFAULT_PROVIDER_ID))), "name": str(data.get("name", "")).strip(), "provider": str(data.get("provider", "custom")), "base_url": str(data.get("baseUrl", data.get("base_url", ""))), "request_path": str(data.get("requestPath", data.get("request_path", "/chat/completions"))) or "/chat/completions", "api_key": str(data.get("apiKey", data.get("api_key", ""))), "model": str(data.get("model", "")).strip(), "built_in": int(built_in), "created_at": created_at, "updated_at": now_ms()}
+
+
+def normalise_provider(data: dict, identifier: str, built_in: bool, created_at: int) -> dict:
+    return {
+        "id": identifier, "name": str(data.get("name", "")).strip(),
+        "api": str(data.get("api", "openai-completions")).strip() or "openai-completions",
+        "base_url": str(data.get("baseUrl", data.get("base_url", ""))).strip().rstrip("/"),
+        "api_key": str(data.get("apiKey", data.get("api_key", ""))).strip(),
+        "built_in": int(built_in), "created_at": created_at, "updated_at": now_ms(),
+    }
 
 
 def fetch_agent(database_path: str, agent_id: str) -> dict:
@@ -316,6 +456,12 @@ def fetch_model(database_path: str, model_id: str) -> dict:
         return row_to_model(conn.execute("SELECT * FROM models WHERE id=?", (model_id,)).fetchone())
 
 
+def fetch_provider(database_path: str, provider_id: str) -> dict:
+    with sqlite3.connect(database_path) as conn:
+        conn.row_factory = sqlite3.Row
+        return row_to_provider(conn.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone())
+
+
 def insert_message(conn: sqlite3.Connection, session: sqlite3.Row, data: dict) -> dict:
     message_type = str(data.get("type", "text"))
     if message_type == "audio":
@@ -330,8 +476,8 @@ def insert_message(conn: sqlite3.Connection, session: sqlite3.Row, data: dict) -
     ))
     summary = " ".join(content.split())
     title = session["title"]
-    if session["title"] == "New conversation / 新会话":
-        title = summary[:34]
+    if str(data.get("role", "user")) == "user" and session["title"] in {"New conversation / 新会话", "Greeting / 问候"}:
+        title = conversation_title(content)
     conn.execute("UPDATE sessions SET title = ?, preview = ?, updated_at = ? WHERE id = ?", (title, summary[:62], timestamp, session["id"]))
     row = conn.execute("SELECT * FROM messages WHERE id = ?", (identifier,)).fetchone()
     return row_to_message(row)

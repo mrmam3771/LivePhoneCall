@@ -9,7 +9,14 @@ async function request(path, options = {}) {
   })
   if (response.status === 204) return undefined
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || `Chat storage request failed (${response.status})`)
+  if (!response.ok) throw new Error(body.detail || body.error || `Chat storage request failed (${response.status})`)
+  return body
+}
+
+async function requestModelCatalog(refresh = false) {
+  const response = await fetch(`/api/catalog/models${refresh ? '?refresh=true' : ''}`)
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.detail || `Model catalog request failed (${response.status})`)
   return body
 }
 
@@ -66,10 +73,15 @@ export function useSqliteChatStore() {
     createAgent: (agent) => request('/agents', { method: 'POST', body: JSON.stringify(agent) }),
     updateAgent: (agent) => request(`/agents/${agent.id}`, { method: 'PUT', body: JSON.stringify(agent) }),
     deleteAgent: (agentId) => request(`/agents/${agentId}`, { method: 'DELETE' }),
+    listProviders: () => request('/providers'),
+    createProvider: (provider) => request('/providers', { method: 'POST', body: JSON.stringify(provider) }),
+    updateProvider: (provider) => request(`/providers/${provider.id}`, { method: 'PUT', body: JSON.stringify(provider) }),
+    deleteProvider: (providerId) => request(`/providers/${providerId}`, { method: 'DELETE' }),
     listModels: () => request('/models'),
     createModel: (model) => request('/models', { method: 'POST', body: JSON.stringify(model) }),
     updateModel: (model) => request(`/models/${model.id}`, { method: 'PUT', body: JSON.stringify(model) }),
     deleteModel: (modelId) => request(`/models/${modelId}`, { method: 'DELETE' }),
+    getModelCatalog: requestModelCatalog,
   }
 }
 

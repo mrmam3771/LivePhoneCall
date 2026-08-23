@@ -11,7 +11,7 @@ from pathlib import Path
 import soundfile as sf
 import torch
 from flask import Flask, Response, jsonify, request
-from qwen_tts import Qwen3TTSModel
+from faster_qwen3_tts import FasterQwen3TTS
 
 
 class QwenTTSService:
@@ -27,11 +27,12 @@ class QwenTTSService:
             return
         attention = "flash_attention_2" if importlib.util.find_spec("flash_attn") else "sdpa"
         dtype = torch.bfloat16 if self.device.startswith("cuda") else torch.float32
-        self.model = Qwen3TTSModel.from_pretrained(
+        self.model = FasterQwen3TTS.from_pretrained(
             self.model_path,
-            device_map=self.device,
+            device=self.device,
             dtype=dtype,
             attn_implementation=attention,
+            local_files_only=True,
         )
 
     def synthesize(self, text: str, language: str, speaker: str) -> bytes:
@@ -45,6 +46,16 @@ class QwenTTSService:
         output = io.BytesIO()
         sf.write(output, wavs[0], sample_rate, format="WAV", subtype="PCM_16")
         return output.getvalue()
+
+    def stream(self, text: str, language: str, speaker: str):
+        """Yield float32 mono PCM as Qwen3-TTS generates it."""
+        self.load()
+        with self._lock:
+            for audio, sample_rate, _timing in self.model.generate_custom_voice_streaming(
+                text=text, language=language, speaker=speaker, chunk_size=4,
+            ):
+                self.sample_rate = sample_rate
+                yield audio.astype("float32", copy=False).tobytes()
 
 
 def create_app(service: QwenTTSService, max_text_length: int = 800) -> Flask:
@@ -79,6 +90,21 @@ def create_app(service: QwenTTSService, max_text_length: int = 800) -> Flask:
             app.logger.exception("Qwen3-TTS synthesis failed")
             return jsonify({"error": str(exc)}), 500
         return Response(audio, mimetype="audio/wav", headers={"Cache-Control": "no-store"})
+
+    @app.post("/synthesize-stream")
+    def synthesize_stream():
+        payload = request.get_json(silent=True) or {}
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            return jsonify({"error": "text is required"}), 400
+        if len(text) > max_text_length:
+            return jsonify({"error": f"text exceeds {max_text_length} characters"}), 400
+        try:
+            stream = service.stream(text, str(payload.get("language") or "Auto"), str(payload.get("speaker") or "Vivian"))
+            return Response(stream, mimetype="audio/pcm", headers={"Cache-Control": "no-store", "X-Audio-Format": "f32le", "X-Sample-Rate": "24000"})
+        except Exception as exc:
+            app.logger.exception("Qwen3-TTS streaming synthesis failed")
+            return jsonify({"error": str(exc)}), 500
 
     return app
 

